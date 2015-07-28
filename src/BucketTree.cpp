@@ -21,7 +21,7 @@ BucketTree::BucketTree(std::string filename)
 	// Otherwise initialise new bucketS	
 	for (int i = 0; i < BUCKETS; i++) {
 		for (int z = 0; z < Z; z++) {
-			tree[i].blocks[z].id = -1;
+			tree[i][z].id = -1;
 		}
 	}
 	
@@ -39,20 +39,15 @@ BucketTree::~BucketTree()
 	delete[] tree;
 }
 
-// Gets the block from the tree
-Bucket BucketTree::Read(int bucketPos)
+// Gets a bucket from the tree
+void BucketTree::Read(Bucket &b, int pos)
 {
-	//file.seek(sizeof (Block) * block);
-	
-	return tree[bucketPos];
+	b = tree[pos];
 }
 
-// Writes a new block, and returns the
-// old blocks
-Bucket BucketTree::Write(Bucket newBucket, int bucketPos)
+// Writes a new bucket and returns
+// the previous bucket value
+void BucketTree::Write(Bucket &b, int pos)
 {
-	Bucket oldBucket = tree[bucketPos];
-	tree[bucketPos] = newBucket;
-	
-	return oldBucket;
+	std::swap(b, tree[pos]);
 }

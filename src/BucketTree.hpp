@@ -22,19 +22,17 @@ struct Block {
 	Chunk data;
 };
 
+/*
+Buckets just contain Z blocks.
+*/
+using Bucket = std::array<Block, Z>;
+
 struct BlockHash {
 	std::hash<int> idHasher;
 
 	size_t operator()(const Block &b) const {
 		return idHasher(b.id);
 	}
-};
-
-/*
-Buckets contain multiple blocks
-*/
-struct Bucket{
-	Block blocks[Z];
 };
 
 class BucketTree {
@@ -47,6 +45,6 @@ public:
 	BucketTree(std::string filename);
 	~BucketTree();
 	
-	Bucket Read(int bucketPos);
-	Bucket Write(Bucket newBucket, int bucketPos);
+	void Read(Bucket &b, int pos);
+	void Write(Bucket &b, int pos);
 };	

@@ -50,10 +50,11 @@ int GetNodeOnPath(int leaf, int depth)
 void ORAM::FetchPath(int x)
 {
 	for (int d = 0; d <= DEPTH; d++) {
-		Bucket bucket = tree.Read(GetNodeOnPath(x, d));
+		Bucket bucket;
+		tree.Read(bucket, GetNodeOnPath(x, d));
 		
 		for (int z = 0; z < Z; z++) {
-			Block &block = bucket.blocks[z];
+			Block &block = bucket[z];
 		
 			if (block.id == -1) {
 				continue;
@@ -84,7 +85,7 @@ void ORAM::WritePath(int x)
 		// Write blocks to tree
 		Bucket bucket;
 		for (int z = 0; z < std::min((int) validBlocks.size(), Z); z++) {
-			Block &block = bucket.blocks[z];
+			Block &block = bucket[z];
 			block.id = validBlocks[z];
 			block.data = stash[block.id];
 			// swap(position[b.blocks[z].id, blocks[z].id)
@@ -95,7 +96,7 @@ void ORAM::WritePath(int x)
 		
 		// Fill any empty spaces with dummy blocks
 		for (int z = validBlocks.size(); z < Z; z++) {
-			Block &block = bucket.blocks[z];
+			Block &block = bucket[z];
 			block.id = -1;
 		}
 		
