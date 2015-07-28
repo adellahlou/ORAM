@@ -1,24 +1,25 @@
 #pragma once
 
+#include <array>
+#include <fstream>
 #include <functional>
+
 #include <cmath>
 
-constexpr int DEPTH = 16;
+constexpr int DEPTH = 7;
 constexpr int BUCKETS = ((int) pow(2, DEPTH+1) - 1);
 constexpr int Z = 4;
 constexpr int CHUNK = 1024*4;
+
+using Chunk = std::array<char, CHUNK>;
 
 /*
 Each Blocks contain small amounts
 of data and a unique identifier
 */
 struct Block {
-	int id;
-	mutable char data[CHUNK];
-	
-	bool operator==(const Block &b) const {
-		return id == b.id;
-	}
+	int32_t id;
+	Chunk data;
 };
 
 struct BlockHash {
@@ -37,7 +38,8 @@ struct Bucket{
 };
 
 class BucketTree {
-	//std::fstream file
+	std::string filename;
+	std::fstream file;
 	
 	Bucket *tree;
 	

@@ -5,26 +5,23 @@
 
 #include <fstream>
 
-int main()
+int read(ORAM &oram)
 {
-	printf("total blocks = %d\n", BUCKETS*Z);
-	std::fstream file;
+	puts("reading");
+	
+	std::ifstream file;
 	file.open("input.txt", std::fstream::in | std::fstream::binary);
-
+	
 	file.seekg(0, file.end);
 	int length = file.tellg();
 	file.seekg(0, file.beg);
-	
-	ORAM oram;
-	
-	printf("reading\n");
 	
 	for (int i = 0; i < length; i += CHUNK) {
 		int readLength = std::min(CHUNK, length - i);
 		int blockID = i/CHUNK;
 	
-		char buffer[CHUNK] = {0};
-		file.read(buffer, readLength);
+		Chunk buffer;
+		file.read(buffer.data(), readLength);
 		oram.Write(buffer, blockID);
 	
 		printf("\r%d / %d", blockID, length/CHUNK);
@@ -32,25 +29,39 @@ int main()
 	}
 	
 	file.close();
+	puts("\n");
 	
-	// play around with blocks
+	return length;
+}
+
+void write(ORAM &oram, int length)
+{
+	puts("writing");
 	
+	std::fstream file;
 	file.open("output.txt", std::fstream::out | std::fstream::binary | std::fstream::trunc);
-	printf("\n\nwriting\n");
-	
+		
 	for (int i = 0; i < length; i += CHUNK) {
 		int writeLength = std::min(CHUNK, length - i);
 		int blockID = i/CHUNK;
 		
-		char buffer[CHUNK] = {0};
+		Chunk buffer;
 		oram.Read(buffer, blockID);
-		file.write(buffer, writeLength);
+		file.write(buffer.data(), writeLength);
 		
 		printf("\r%d / %d", i/CHUNK, length/CHUNK);
 		fflush(stdout);
 	}
-	
-	puts("");
-	
 	file.close();
+	puts("\n");
+}
+
+int main()
+{
+	printf("total blocks = %d\n", BUCKETS*Z);
+
+	ORAM oram;
+	int length = read(oram);
+	
+	write(oram, length);
 }

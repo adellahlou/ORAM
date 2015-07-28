@@ -5,14 +5,14 @@
 #include <vector>
 #include <random>
 #include <unordered_set>
-
+#include <unordered_map>
 
 class ORAM {
 	int *position;
-	//struct Bucket *tree;
 	BucketTree tree;
 	
-	std::unordered_set<Block, BlockHash> stash;
+	//std::unordered_set<Block, BlockHash> stash;
+	std::unordered_map<int, Chunk> stash;
 	
 	// Randomness
 	std::random_device rd;
@@ -24,13 +24,13 @@ class ORAM {
 	void FetchPath(int x);
 	void WritePath(int x);
 	
-	void ReadData(char *data, int blockID);
-	void WriteData(char *data, int blockID);
+	void ReadData(Chunk &chunk, int blockID);
+	void WriteData(Chunk &chunk, int blockID);
 	
 public:
 	ORAM();
 	~ORAM();
 	
-	void Read(char *data, int blockID);
-	void Write(char *data, int blockID);
+	void Read(Chunk &chunk, int blockID);
+	void Write(Chunk &chunk, int blockID);
 };
