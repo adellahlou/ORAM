@@ -10,14 +10,14 @@
 #include <ctime>
 #include <cmath>
 
-ORAM::ORAM()
-: tree("tree.txt"), rd(), mt(rd()), dis(0, BUCKETS/2)
+ORAM::ORAM(int depth)
+: tree("tree.txt", depth), rd(), mt(rd()), dis(0, tree.GetBuckets()/2)
 {
 	// Maps Block IDs to paths
-	position = new int[BUCKETS*Z];
+	position = new int[tree.GetBlocks()];
 	
 	// Initialise blocks with random paths
-	for (int i = 0; i < BUCKETS*Z; i++) {
+	for (int i = 0; i < tree.GetBlocks(); i++) {
 		position[i] = RandomPath();
 	}
 }
@@ -35,10 +35,10 @@ int ORAM::RandomPath()
 
 // Fetches the array index a bucket
 // that lise on a specific path
-int GetNodeOnPath(int leaf, int depth)
+int ORAM::GetNodeOnPath(int leaf, int depth)
 {
-	leaf += BUCKETS/2;
-	for (int d = DEPTH - 1; d >= depth; d--) {
+	leaf += GetBuckets()/2;
+	for (int d = GetDepth() - 1; d >= depth; d--) {
 		leaf = (leaf + 1)/2 - 1;
 	}
 	
@@ -49,18 +49,16 @@ int GetNodeOnPath(int leaf, int depth)
 // them to the stash
 void ORAM::FetchPath(int x)
 {
-	for (int d = 0; d <= DEPTH; d++) {
+	for (int d = 0; d <= GetDepth(); d++) {
 		Bucket bucket;
 		tree.Read(bucket, GetNodeOnPath(x, d));
 		
 		for (int z = 0; z < Z; z++) {
 			Block &block = bucket[z];
 		
-			if (block.id == -1) {
-				continue;
+			if (block.id != -1) {
+				stash.insert({block.id, block.data});	
 			}
-			
-			stash.insert({block.id, block.data});
 		}
 	}
 }
@@ -71,7 +69,7 @@ void ORAM::WritePath(int x)
 	std::vector<int> validBlocks;
 	
 	// Write back the path
-	for (int d = DEPTH; d >= 0; d--) {
+	for (int d = GetDepth(); d >= 0; d--) {
 		validBlocks.clear();
 		int node = GetNodeOnPath(x, d);
 		
@@ -153,3 +151,19 @@ void ORAM::Write(Chunk &chunk, int blockID)
 	WriteData(chunk, blockID);	
 	WritePath(x);
 }
+
+int ORAM::GetDepth() const
+{
+	return tree.GetDepth();
+}
+
+int ORAM::GetBlocks() const
+{
+	return tree.GetBlocks();
+}
+
+int ORAM::GetBuckets() const
+{
+	return tree.GetBuckets();
+}
+	

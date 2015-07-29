@@ -6,45 +6,36 @@
 
 #include <cmath>
 
-constexpr int DEPTH = 7;
-constexpr int BUCKETS = ((int) pow(2, DEPTH+1) - 1);
-constexpr int Z = 4;
-constexpr int CHUNK = 1024*4;
-
+constexpr int CHUNK = 1024*4; // 4 KB
 using Chunk = std::array<char, CHUNK>;
 
 /*
-Each Blocks contain small amounts
-of data and a unique identifier
+Each Blocks contain a unique
+identifier and a chunk of data
 */
 struct Block {
 	int32_t id;
 	Chunk data;
 };
 
-/*
-Buckets just contain Z blocks.
-*/
+constexpr int Z = 4;
 using Bucket = std::array<Block, Z>;
-
-struct BlockHash {
-	std::hash<int> idHasher;
-
-	size_t operator()(const Block &b) const {
-		return idHasher(b.id);
-	}
-};
 
 class BucketTree {
 	std::string filename;
 	std::fstream file;
 	
 	Bucket *tree;
+	const int depth;
 	
 public:
-	BucketTree(std::string filename);
+	BucketTree(std::string filename, int depth);
 	~BucketTree();
 	
 	void Read(Bucket &b, int pos);
 	void Write(Bucket &b, int pos);
+	
+	int GetDepth() const;
+	int GetBlocks() const;
+	int GetBuckets() const;
 };	
