@@ -1,40 +1,45 @@
 #include "BucketTree.hpp"
+#include "File.hpp"
 
 BucketTree::BucketTree(std::string filename, int depth)
 : filename(filename), depth(depth)
 {
-	file.open(filename, std::fstream::in | std::fstream::out | std::ios::binary);
-	
 	tree = new Bucket[GetBuckets()];
 	
+	/*
+	file.open(filename, std::fstream::in | std::fstream::out | std::ios::binary);	
+	
 	// Get the length of the file
-	file.seekg(0, std::ios::end);
-	int length = file.tellg();
-	file.seekg(0, std::ios::beg);
+	size_t length = File::GetLength(file);
 	
-	if (0 && length == GetBuckets()*sizeof (Bucket)) {
-		//printf("reading tree file\n");
-		//file.read((char *) tree, GetBuckets()*sizeof (Bucket));
-		//return;
+	if (length == GetBuckets()*sizeof (Bucket)) {
+		printf("reading tree file\n");
+		file.read((char *) tree, GetBuckets()*sizeof (Bucket));
+		return;
 	}
+
+	file.close();
+	*/
 	
-	// Otherwise initialise new bucketS	
+	// Otherwise initialise new blocks
 	for (int i = 0; i < GetBuckets(); i++) {
 		for (int z = 0; z < Z; z++) {
 			tree[i][z].id = -1;
 		}
 	}
 	
-	file.close();
 }
 
 BucketTree::~BucketTree()
 {
-	//file.open(filename, std::fstream::out | std::ios::binary | std::ios::trunc);
-	//file.seekg(0, std::ios::beg);
-	//file.write((char *) tree, GetBuckets()*sizeof (Bucket));
+	/*
+	// Dump tree contents to file
+	file.open(filename, std::fstream::out | std::ios::binary | std::ios::trunc);
+	file.seekg(0, std::ios::beg);
+	file.write((char *) tree, GetBuckets()*sizeof (Bucket));
 	
-	//file.close();
+	file.close();
+	*/
 	
 	delete[] tree;
 }

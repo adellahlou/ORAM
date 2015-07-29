@@ -9,7 +9,6 @@ template <long unsigned int N>
 using raw = std::array<raw_t, N>;
 
 class AES {
-	//
 public:
 	static void Setup();
 	static void Cleanup();

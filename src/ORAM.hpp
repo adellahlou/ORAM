@@ -2,7 +2,6 @@
 
 #include "BucketTree.hpp"
 
-#include <vector>
 #include <random>
 #include <unordered_map>
 

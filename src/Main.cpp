@@ -1,22 +1,53 @@
 #include "ORAM.hpp"
 
+#include "AES.hpp"
+#include "File.hpp"
+
+#include <cstring>
 #include <cstdio>
 #include <cstdlib>
 
 #include <fstream>
 
-int read(ORAM &oram)
+size_t read(ORAM &oram);
+void write(ORAM &oram, size_t length);
+
+void encrypt();
+
+int main()
+{
+	ORAM oram(6);
+	printf("total blocks = %d\n", oram.GetBlocks());
+
+	size_t length = read(oram);
+	
+	for (size_t i = 0; i < length; i += CHUNK) {
+		Chunk chunk;
+		
+		oram.Read(chunk, i/CHUNK);
+		
+		// Invert bits
+		for (size_t j = 0; j < CHUNK; j++) {
+			unsigned char c = chunk[j];
+			chunk[j] = ~c;
+		}
+		
+		oram.Write(chunk, i/CHUNK);
+	}
+	
+	write(oram, length);
+}
+
+size_t read(ORAM &oram)
 {
 	puts("reading");
 	
-	std::ifstream file;
+	std::fstream file;
 	file.open("input.txt", std::fstream::in | std::fstream::binary);
 	
-	file.seekg(0, file.end);
-	int length = file.tellg();
-	file.seekg(0, file.beg);
+	size_t length = File::GetLength(file);
 	
-	for (int i = 0; i < length; i += CHUNK) {
+	for (size_t i = 0; i < length; i += CHUNK) {
 		int readLength = std::min(CHUNK, length - i);
 		int blockID = i/CHUNK;
 	
@@ -24,7 +55,7 @@ int read(ORAM &oram)
 		file.read(buffer.data(), readLength);
 		oram.Write(buffer, blockID);
 	
-		printf("\r%d / %d", blockID, length/CHUNK);
+		printf("\r%d / %zu", blockID + 1, length/CHUNK);
 		fflush(stdout);
 	}
 	
@@ -34,14 +65,14 @@ int read(ORAM &oram)
 	return length;
 }
 
-void write(ORAM &oram, int length)
+void write(ORAM &oram, size_t length)
 {
 	puts("writing");
 	
 	std::fstream file;
 	file.open("output.txt", std::fstream::out | std::fstream::binary | std::fstream::trunc);
 		
-	for (int i = 0; i < length; i += CHUNK) {
+	for (size_t i = 0; i < length; i += CHUNK) {
 		int writeLength = std::min(CHUNK, length - i);
 		int blockID = i/CHUNK;
 		
@@ -49,19 +80,31 @@ void write(ORAM &oram, int length)
 		oram.Read(buffer, blockID);
 		file.write(buffer.data(), writeLength);
 		
-		printf("\r%d / %d", i/CHUNK, length/CHUNK);
+		printf("\r%d / %zu", blockID + 1, length/CHUNK);
 		fflush(stdout);
 	}
 	file.close();
 	puts("\n");
 }
 
-int main()
+void encryption()
 {
-	printf("total blocks = %d\n", BUCKETS*Z);
-
-	ORAM oram;
-	int length = read(oram);
+	AES::Setup();
 	
-	write(oram, length);
+	raw<32> key = {0};
+	raw<16> iv;
+	
+	raw_t *plaintext = (raw_t *) "What kind of Pokemon are you?";
+	int plen = strlen((char *)plaintext) + 1;
+	
+	raw_t ciphertext[AES::GetCiphertextLength(plen)];	
+	
+	int clen = AES::Encrypt(key, iv, plaintext, plen, ciphertext);
+	
+	raw_t output[clen];
+	int olen = AES::Decrypt(key, iv, ciphertext, clen, output);
+	
+	printf("plen = %d\t clen = %d\tolen = %d\n", plen, clen, olen);
+	puts((const char *) output);
+	AES::Cleanup();
 }

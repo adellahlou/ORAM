@@ -6,7 +6,7 @@
 
 #include <cmath>
 
-constexpr int CHUNK = 1024*4; // 4 KB
+constexpr size_t CHUNK = 1024*4; // 4 KB
 using Chunk = std::array<char, CHUNK>;
 
 /*
@@ -20,6 +20,13 @@ struct Block {
 
 constexpr int Z = 4;
 using Bucket = std::array<Block, Z>;
+
+/*
+struct Bucket {
+	uint8_t iv[16];
+	std::vector<Block> blocks;
+};
+*/
 
 class BucketTree {
 	std::string filename;
