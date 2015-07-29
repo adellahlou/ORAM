@@ -1,6 +1,8 @@
 #include "BucketTree.hpp"
 #include "File.hpp"
 
+#include <functional>
+
 BucketTree::BucketTree(std::string filename, int depth)
 : filename(filename), depth(depth)
 {

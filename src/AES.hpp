@@ -1,12 +1,9 @@
 #pragma once
 
+#include "Storage.hpp"
+
 #include <array>
 #include <cstdint>
-
-using raw_t = uint8_t;
-
-template <long unsigned int N>
-using raw = std::array<raw_t, N>;
 
 class AES {
 public:

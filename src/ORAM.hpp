@@ -1,15 +1,18 @@
 #pragma once
 
+#include "Stash.hpp"
+#include "PositionMap.hpp"
 #include "BucketTree.hpp"
 
 #include <random>
+#include <vector>
 #include <unordered_map>
 
 class ORAM {
-	int *position;
 	BucketTree tree;
+	PositionMap position;
 	
-	std::unordered_map<int, Chunk> stash;
+	Stash stash;
 	
 	// Randomness
 	std::random_device rd;
@@ -18,6 +21,7 @@ class ORAM {
 	
 	int RandomPath();
 	int GetNodeOnPath(int leaf, int depth);
+	std::vector<int> GetIntersectingBlocks(int x, int depth);
 	
 	void FetchPath(int x);
 	void WritePath(int x);

@@ -52,7 +52,7 @@ size_t read(ORAM &oram)
 		int blockID = i/CHUNK;
 	
 		Chunk buffer;
-		file.read(buffer.data(), readLength);
+		file.read((char *) buffer.data(), readLength);
 		oram.Write(buffer, blockID);
 	
 		printf("\r%d / %zu", blockID + 1, length/CHUNK);
@@ -78,7 +78,7 @@ void write(ORAM &oram, size_t length)
 		
 		Chunk buffer;
 		oram.Read(buffer, blockID);
-		file.write(buffer.data(), writeLength);
+		file.write((char *) buffer.data(), writeLength);
 		
 		printf("\r%d / %zu", blockID + 1, length/CHUNK);
 		fflush(stdout);

@@ -11,21 +11,18 @@
 #include <cmath>
 
 ORAM::ORAM(int depth)
-: tree("tree.txt", depth), rd(), mt(rd()), dis(0, tree.GetBuckets()/2)
+: tree("tree.bin", depth), position("pos.bin", tree.GetBlocks()), rd(), mt(rd()), dis(0, tree.GetBuckets()/2)
 {
-	// Maps Block IDs to paths
-	position = new int[tree.GetBlocks()];
-	
-	// Initialise blocks with random paths
-	for (int i = 0; i < tree.GetBlocks(); i++) {
-		position[i] = RandomPath();
+	if (!position.AlreadyExisted()) {
+		// Initialise blocks with random paths
+		for (int i = 0; i < tree.GetBlocks(); i++) {
+			position[i] = RandomPath();
+		}
 	}
 }
 
 ORAM::~ORAM()
-{
-	delete[] position;
-}
+{}
 
 // Generate a random path (a leaf node)
 int ORAM::RandomPath()
@@ -63,22 +60,30 @@ void ORAM::FetchPath(int x)
 	}
 }
 
-// Greedily writes blocks from the stash to the tree
-void ORAM::WritePath(int x)
+std::vector<int> ORAM::GetIntersectingBlocks(int x, int depth)
 {
 	std::vector<int> validBlocks;
 	
+	int node = GetNodeOnPath(x, depth);
+	
+	for (auto b : stash) {
+		int id = b.first;
+		if (GetNodeOnPath(position[id], depth) == node) {
+			validBlocks.push_back(id);
+		}
+	}
+	
+	return validBlocks;
+}
+
+// Greedily writes blocks from the stash to the tree
+void ORAM::WritePath(int x)
+{	
 	// Write back the path
 	for (int d = GetDepth(); d >= 0; d--) {
-		validBlocks.clear();
-		int node = GetNodeOnPath(x, d);
-		
 		// Find blocks that can be on this bucket
-		for (auto b : stash) {
-			if (GetNodeOnPath(position[b.first], d) == node) {
-				validBlocks.push_back(b.first);
-			}
-		}
+		int node = GetNodeOnPath(x, d);
+		auto validBlocks = GetIntersectingBlocks(x, d);
 		
 		// Write blocks to tree
 		Bucket bucket;
