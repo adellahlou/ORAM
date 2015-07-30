@@ -97,3 +97,14 @@ int AES::GetCiphertextLength(int plen)
 {
 	return (plen/16 + 1) * 16;
 }
+
+raw<16> AES::GenerateIV()
+{
+	raw<16> iv;
+	
+	if (RAND_bytes(iv.data(), iv.size()) != 1) {
+		error("Need more entropy");
+	}
+	
+	return iv;
+}

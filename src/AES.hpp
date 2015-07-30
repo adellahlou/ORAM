@@ -14,4 +14,5 @@ public:
 	static int Decrypt(raw<32> key, raw<16> iv, raw_t *ciphertext, int clen, raw_t *plaintext);
 	
 	static int GetCiphertextLength(int plen);
+	static raw<16> GenerateIV();
 };
