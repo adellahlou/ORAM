@@ -26,10 +26,13 @@ static void error(std::string msg)
 {
 	fprintf(stderr, "fatal error: %s\n", msg.c_str());
 	ERR_print_errors_fp(stderr);
+	
+	//fprintf(stderr, "%s\n", ERR_error_string(1200, NULL));
+	int i = 1/0;
 	exit(1);
 }
 
-int AES::Encrypt(raw<32> key, raw<16> iv, raw_t *plaintext, int plen, raw_t *ciphertext)
+int AES::Encrypt(raw<Key> key, raw<IV> iv, raw_t *plaintext, int plen, raw_t *ciphertext)
 {
 	EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
 	
@@ -60,7 +63,7 @@ int AES::Encrypt(raw<32> key, raw<16> iv, raw_t *plaintext, int plen, raw_t *cip
 	return clen;
 }
 
-int AES::Decrypt(raw<32> key, raw<16> iv, raw_t *ciphertext, int clen, raw_t *plaintext)
+int AES::Decrypt(raw<Key> key, raw<IV> iv, raw_t *ciphertext, int clen, raw_t *plaintext)
 {
 	EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
 	
@@ -98,13 +101,14 @@ int AES::GetCiphertextLength(int plen)
 	return (plen/16 + 1) * 16;
 }
 
-raw<16> AES::GenerateIV()
+raw<IV> AES::GenerateIV()
 {
-	raw<16> iv;
+	raw<IV> iv;
 	
 	if (RAND_bytes(iv.data(), iv.size()) != 1) {
 		error("Need more entropy");
 	}
 	
-	return iv;
+	//return iv;
+	return {0};
 }
