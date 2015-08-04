@@ -1,15 +1,15 @@
 #pragma once
 
 #include "Storage.hpp"
+#include "Bucket.hpp"
 
-#include <fstream>
 #include <cmath>
 
 class BucketTree {
 	std::string filename;
-	std::fstream file;
+	int fd;
+	raw_t *map;
 	
-	Bucket *tree;
 	const int depth;
 	
 public:
