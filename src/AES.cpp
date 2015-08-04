@@ -27,9 +27,7 @@ static void error(std::string msg)
 	fprintf(stderr, "fatal error: %s\n", msg.c_str());
 	ERR_print_errors_fp(stderr);
 	
-	//fprintf(stderr, "%s\n", ERR_error_string(1200, NULL));
-	int i = 1/0;
-	exit(1);
+	abort();
 }
 
 int AES::Encrypt(raw<Key> key, raw<IV> iv, raw_t *plaintext, int plen, raw_t *ciphertext)

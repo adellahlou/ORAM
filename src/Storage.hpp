@@ -22,9 +22,6 @@ struct Block {
 constexpr int Z = 4;
 using Bucket = std::array<Block, Z>;
 
-/*
-struct Bucket {
-	uint8_t iv[16];
-	std::vector<Block> blocks;
-};
-*/
+// Encryption constants
+constexpr int IV = 16; // bytes
+constexpr int Key = 32; // bytes

@@ -24,7 +24,7 @@ void Timer::Stop()
 
 void Timer::Reset()
 {
-	// The current elapsed time is 0
+	// The elapsed time is 0
 	startTime = clock::now();
 	stopTime = startTime;
 	
