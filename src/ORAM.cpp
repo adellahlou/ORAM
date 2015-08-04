@@ -13,6 +13,8 @@
 ORAM::ORAM(int depth)
 : tree("tree.bin", depth), position("pos.bin", tree.GetBlocks()), rd(), mt(rd()), dis(0, tree.GetBuckets()/2)
 {
+	StashHelper::Load("stash.bin", stash);
+	
 	if (!position.AlreadyExisted()) {
 		// Initialise blocks with random paths
 		for (int i = 0; i < tree.GetBlocks(); i++) {
@@ -22,7 +24,9 @@ ORAM::ORAM(int depth)
 }
 
 ORAM::~ORAM()
-{}
+{
+	StashHelper::Save("stash.bin", stash);
+}
 
 // Generate a random path (a leaf node)
 int ORAM::RandomPath()
@@ -53,13 +57,15 @@ void ORAM::FetchPath(int x)
 		for (int z = 0; z < Z; z++) {
 			Block &block = bucket[z];
 		
-			if (block.id != -1) {
+			if (block.id != -1) { // It isn't a dummy block
 				stash.insert({block.id, block.data});	
 			}
 		}
 	}
 }
 
+// Gets a list ofblocks on the stash which can be placed at a
+// specific point
 std::vector<int> ORAM::GetIntersectingBlocks(int x, int depth)
 {
 	std::vector<int> validBlocks;
@@ -72,11 +78,12 @@ std::vector<int> ORAM::GetIntersectingBlocks(int x, int depth)
 			validBlocks.push_back(id);
 		}
 	}
-	
+
 	return validBlocks;
 }
 
-// Greedily writes blocks from the stash to the tree
+// Greedily writes blocks from the stash to the tree,
+// pushing blocks as deep into the tree as possible
 void ORAM::WritePath(int x)
 {	
 	// Write back the path
@@ -91,7 +98,6 @@ void ORAM::WritePath(int x)
 			Block &block = bucket[z];
 			block.id = validBlocks[z];
 			block.data = stash[block.id];
-			// swap(position[b.blocks[z].id, blocks[z].id)
 			
 			// The block no longer needs to be in the stash
 			stash.erase(block.id);
@@ -130,30 +136,22 @@ void ORAM::WriteData(Chunk &chunk, int blockID)
 		stash[blockID].fill(0);
 	}
 	
-	// Give back the previous data in the block
-	std::swap(chunk, stash[blockID]);
+	chunk = stash[blockID];
 }
 
-// Reads data from a block
-void ORAM::Read(Chunk &chunk, int blockID)
+void ORAM::Access(Op op, Chunk &chunk, int blockID)
 {
 	int x = position[blockID];
 	position[blockID] = RandomPath();
 	
 	FetchPath(x);
-	ReadData(chunk, blockID);
-	WritePath(x);
-}
-
-// Writes data from a block, replacing the buffer
-// with the old data
-void ORAM::Write(Chunk &chunk, int blockID)
-{
-	int x = position[blockID];
-	position[blockID] = RandomPath();
 	
-	FetchPath(x);
-	WriteData(chunk, blockID);	
+	if (op == READ) {
+		ReadData(chunk, blockID);
+	} else {
+		WriteData(chunk, blockID);
+	}
+	
 	WritePath(x);
 }
 

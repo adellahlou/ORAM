@@ -11,7 +11,6 @@
 class ORAM {
 	BucketTree tree;
 	PositionMap position;
-	
 	Stash stash;
 	
 	// Randomness
@@ -33,8 +32,12 @@ public:
 	ORAM(int depth);
 	~ORAM();
 	
-	void Read(Chunk &chunk, int blockID);
-	void Write(Chunk &chunk, int blockID);
+	enum Op {
+		READ,
+		WRITE
+	};
+	
+	void Access(Op op, Chunk &chunk, int blockID);
 	
 	int GetDepth() const;
 	int GetBlocks() const;
