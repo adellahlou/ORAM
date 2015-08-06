@@ -107,6 +107,5 @@ raw<IV> AES::GenerateIV()
 		error("Need more entropy");
 	}
 	
-	//return iv;
-	return {0};
+	return iv;
 }
