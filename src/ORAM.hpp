@@ -1,16 +1,17 @@
 #pragma once
 
-#include "Stash.hpp"
-#include "PositionMap.hpp"
 #include "BucketTree.hpp"
+#include "Stash.hpp"
 
 #include <random>
 #include <vector>
 #include <unordered_map>
 
 class ORAM {
+	bytes<Key> key;
+	
 	BucketTree tree;
-	PositionMap position;
+	int *position;
 	Stash stash;
 	
 	// Randomness
@@ -29,7 +30,7 @@ class ORAM {
 	void WriteData(Chunk &chunk, int blockID);
 	
 public:
-	ORAM(int depth);
+	ORAM(int depth, bytes<Key> key);
 	~ORAM();
 	
 	enum Op {

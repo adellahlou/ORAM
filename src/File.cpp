@@ -1,11 +1,11 @@
 #include "File.hpp"
 
-void File::Read(std::fstream &file, raw_t *data, size_t len)
+void File::Read(std::fstream &file, byte_t *data, size_t len)
 {
 	file.read((char *) data, len);
 }
 
-void File::Write(std::fstream &file, raw_t *data, size_t len)
+void File::Write(std::fstream &file, byte_t *data, size_t len)
 {
 	file.write((char *) data, len);
 }

@@ -7,7 +7,7 @@
 bool StashHelper::Load(std::string filename, Stash &stash)
 {
 	std::fstream file;
-	file.open(filename, std::fstream::in | std::fstream::binary);
+	file.open(filename, std::ios::in | std::ios::binary);
 	
 	if (!file.good()) {
 		return false;
@@ -17,6 +17,7 @@ bool StashHelper::Load(std::string filename, Stash &stash)
 	
 	// Does length correctly align?
 	if (length % (sizeof (int) + CHUNK)) {
+		file.close();
 		return false;
 	}
 	
@@ -24,14 +25,13 @@ bool StashHelper::Load(std::string filename, Stash &stash)
 		int id;
 		Chunk chunk;
 		
-		File::Read(file, (raw_t *) &id, sizeof (int));
+		File::Read(file, (byte_t *) &id, sizeof (int));
 		File::Read(file, chunk.data(), chunk.size());
 		
 		stash[id] = chunk;
 	}
 	
 	file.close();
-	
 	return true;
 }
 
@@ -39,10 +39,10 @@ bool StashHelper::Load(std::string filename, Stash &stash)
 void StashHelper::Save(std::string filename, Stash &stash)
 {
 	std::fstream file;
-	file.open(filename, std::fstream::out | std::fstream::binary | std::fstream::trunc);
+	file.open(filename, std::ios::out | std::ios::binary | std::ios::trunc);
 	
 	for (auto b : stash) {
-		raw<sizeof (int) + CHUNK> plaintext;
+		bytes<sizeof (int) + CHUNK> plaintext;
 		
 		// Copy data to slab
 		memcpy(plaintext.data(), &b.first, sizeof (int));

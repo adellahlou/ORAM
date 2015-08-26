@@ -7,7 +7,6 @@
 
 struct FileInfo {
 	size_t length;
-	
 	std::vector<int> blocks;
 };
 
@@ -15,10 +14,10 @@ class ORAM;
 
 class FileStorage {
 	ORAM &oram;
-public:
+	
 	std::unordered_map<std::string, FileInfo> files;
 	
-	std::vector<int> availableIDs;
+	//std::vector<int> availableIDs;
 
 	int GetAvailableID();
 	void FreeID(int id);
@@ -29,4 +28,9 @@ public:
 
 	bool Add(std::string filename);
 	bool Remove(std::string filename);
+	
+	void Load();
+	void Save();
+	
+	FileInfo GetFileInfo(std::string filename);
 };

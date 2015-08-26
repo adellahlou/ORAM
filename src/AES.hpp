@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Storage.hpp"
+#include "Types.hpp"
 
 #include <array>
 #include <cstdint>
@@ -10,9 +10,9 @@ public:
 	static void Setup();
 	static void Cleanup();
 	
-	static int Encrypt(raw<Key> key, raw<IV> iv, raw_t *plaintext, int plen, raw_t *ciphertext);
-	static int Decrypt(raw<Key> key, raw<IV> iv, raw_t *ciphertext, int clen, raw_t *plaintext);
+	static int Encrypt(bytes<Key> key, bytes<IV> iv, byte_t *plaintext, int plen, byte_t *ciphertext);
+	static int Decrypt(bytes<Key> key, bytes<IV> iv, byte_t *ciphertext, int clen, byte_t *plaintext);
 	
 	static int GetCiphertextLength(int plen);
-	static raw<16> GenerateIV();
+	static bytes<16> GenerateIV();
 };

@@ -8,9 +8,7 @@
 #include <unistd.h>
 #include <sys/fcntl.h>
 
-raw<Key> key = {0};
-
-BucketTree::BucketTree(std::string filename, int depth)
+BucketTree::BucketTree(std::string filename, int depth, bytes<Key> key)
 : filename(filename), depth(depth)
 {
 	fd = open(filename.c_str(), O_RDWR | O_CREAT, 0666);
@@ -26,15 +24,15 @@ BucketTree::BucketTree(std::string filename, int depth)
 	size_t currentSize = lseek(fd, 0L, SEEK_END);
 	lseek(fd, 0L, SEEK_SET);
 	
+	printf("current tree size = %zu\n", currentSize);
+	printf("ideal tree size = %zu\n", fileSize);
+	
 	// Resize file if it's not the right size
 	if (currentSize != fileSize) {
-		puts("TRUCATE!!!");
 		ftruncate(fd, fileSize);
 	}
 	
-	printf("current tree size = %zu\n", currentSize);
-	
-	map = (raw_t *) mmap(NULL, fileSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	map = (byte_t *) mmap(NULL, fileSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
 	if (map == MAP_FAILED) {
 		perror("Error mapping file");
@@ -52,19 +50,17 @@ BucketTree::BucketTree(std::string filename, int depth)
 				Block &b = bucket[z];
 				b.id = -1;
 				
-				if (1) {
+				//if (1) {
 					b.data = {0};
-				} else {
+				//} else {
 					// random
-				}
+				//}
 			}
-	
-			raw<BucketCipher> ciphertext;
-		
-			BucketHelper::Encrypt(key, bucket, ciphertext);
-		
-			memcpy(map + i*BucketCipher, ciphertext.data(), ciphertext.size());
+			
+			// Write dummy blocks to the tree
+			Write(bucket, i, key);
 		}
+		
 		puts("creating new tree file");
 	} else {
 		puts("using existing tree file");
@@ -81,25 +77,20 @@ BucketTree::~BucketTree()
 }
 
 // Gets a bucket from the tree
-void BucketTree::Read(Bucket &b, int pos)
+void BucketTree::Read(Bucket &b, int pos, bytes<Key> key)
 {
-	raw<BucketCipher> ciphertext;
-	
 	// Read in ciphertext from file
+	bytes<BucketCipher> ciphertext;	
 	memcpy(ciphertext.data(), map + pos*BucketCipher, ciphertext.size());
 	
 	BucketHelper::Decrypt(key, ciphertext, b);
 }
 
-// Writes a new bucket and returns
-// the previous bucket value
-void BucketTree::Write(Bucket &b, int pos)
+// Writes a new bucket to the tree
+void BucketTree::Write(Bucket &b, int pos, bytes<Key> key)
 {
-	raw<BucketCipher> ciphertext;
+	bytes<BucketCipher> ciphertext;
 	BucketHelper::Encrypt(key, b, ciphertext);
-
-	// Retrieve old contents
-	// Read(b, pos); (CATASTROPHIC BUG)
 
 	// Write ciphertext to file
 	memcpy(map + pos*BucketCipher, ciphertext.data(), ciphertext.size());

@@ -1,21 +1,18 @@
 #include "ORAM.hpp"
+#include "Position.hpp"
 
-#include <unordered_set>
 #include <algorithm>
 #include <random>
-
-#include <cstdlib>
-#include <cstring>
-#include <cstdio>
-#include <ctime>
 #include <cmath>
 
-ORAM::ORAM(int depth)
-: tree("tree.bin", depth), position("pos.bin", tree.GetBlocks()), rd(), mt(rd()), dis(0, tree.GetBuckets()/2)
+ORAM::ORAM(int depth, bytes<Key> key)
+: key(key), tree("tree.bin", depth, key), position(new int[tree.GetBlocks()]), rd(), mt(rd()), dis(0, tree.GetBuckets()/2)
 {
 	StashHelper::Load("stash.bin", stash);
 	
-	if (!position.AlreadyExisted()) {
+	bool positionExists = PositionHelper::Load("pos.bin", position, tree.GetBlocks());
+	
+	if (!positionExists) {
 		// Initialise blocks with random paths
 		for (int i = 0; i < tree.GetBlocks(); i++) {
 			position[i] = RandomPath();
@@ -25,6 +22,7 @@ ORAM::ORAM(int depth)
 
 ORAM::~ORAM()
 {
+	PositionHelper::Save("pos.bin", position, tree.GetBlocks());
 	StashHelper::Save("stash.bin", stash);
 }
 
@@ -52,7 +50,7 @@ void ORAM::FetchPath(int x)
 {
 	for (int d = 0; d <= GetDepth(); d++) {
 		Bucket bucket;
-		tree.Read(bucket, GetNodeOnPath(x, d));
+		tree.Read(bucket, GetNodeOnPath(x, d), key);
 		
 		for (int z = 0; z < Z; z++) {
 			Block &block = bucket[z];
@@ -64,7 +62,7 @@ void ORAM::FetchPath(int x)
 	}
 }
 
-// Gets a list ofblocks on the stash which can be placed at a
+// Gets a list of blocks on the stash which can be placed at a
 // specific point
 std::vector<int> ORAM::GetIntersectingBlocks(int x, int depth)
 {
@@ -110,11 +108,11 @@ void ORAM::WritePath(int x)
 		}
 		
 		// Write bucket to tree
-		tree.Write(bucket, node);
+		tree.Write(bucket, node, key);
 	}
 }
 
-//Gets the data of a block in the stash
+// Gets the data of a block in the stash
 void ORAM::ReadData(Chunk &chunk, int blockID)
 {
 	// Create block if it doesn't exist
@@ -126,19 +124,14 @@ void ORAM::ReadData(Chunk &chunk, int blockID)
 	chunk = stash[blockID];
 }
 
-// Gets the data of a block in the stash and
-// updates it with new data
+// Updates the data of a block in the stash
 void ORAM::WriteData(Chunk &chunk, int blockID)
 {
-	// Create block if it doesn't exist
-	auto iter = stash.find(blockID);
-	if (iter == stash.end()) {	
-		stash[blockID].fill(0);
-	}
-	
-	chunk = stash[blockID];
+	stash[blockID] = chunk;
 }
 
+// Fetches a block, allowing you to read and write 
+// in a block
 void ORAM::Access(Op op, Chunk &chunk, int blockID)
 {
 	int x = position[blockID];
@@ -168,5 +161,4 @@ int ORAM::GetBlocks() const
 int ORAM::GetBuckets() const
 {
 	return tree.GetBuckets();
-}
-	
+}	
