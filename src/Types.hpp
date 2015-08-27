@@ -23,7 +23,3 @@ struct Block {
 // A bucket contains a number of Blocks
 constexpr int Z = 4;
 using Bucket = std::array<Block, Z>;
-
-// Encryption constants (in bytes)
-constexpr int IV = 16;
-constexpr int Key = 32;
