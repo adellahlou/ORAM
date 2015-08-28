@@ -92,6 +92,30 @@ int AES::Decrypt(bytes<Key> key, bytes<IV> iv, byte_t *ciphertext, int clen, byt
 	return plen;
 }
 
+block AES::Encrypt(bytes<Key> key, bytes<IV> iv, block plaintext)
+{
+	int clen = GetCiphertextLength(plaintext.size());
+	block ciphertext(clen);
+
+	int plen = plaintext.size();
+	Encrypt(key, iv, plaintext.data(), plen, ciphertext.data());
+	
+	return ciphertext;
+}
+
+block AES::Decrypt(bytes<Key> key, bytes<IV> iv, block ciphertext)
+{
+	int clen = ciphertext.size();
+	block plaintext(clen);
+
+	int plen = Decrypt(key, iv, ciphertext.data(), clen, plaintext.data());
+
+	// Trim plaintext to actual size
+	plaintext.resize(plen);
+	
+	return plaintext;
+}
+
 // Gets the length of the corresponding ciphertext
 // given the length of a plaintext
 int AES::GetCiphertextLength(int plen)
