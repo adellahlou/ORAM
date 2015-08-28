@@ -16,12 +16,12 @@ bool StashHelper::Load(std::string filename, Stash &stash)
 	size_t length = File::GetLength(file);
 	
 	// Does length correctly align?
-	if (length % (sizeof (int) + CHUNK)) {
+	if (length % (sizeof (int) + ChunkSize)) {
 		file.close();
 		return false;
 	}
 	
-	for (size_t i = 0; i < length; i += sizeof (int) + CHUNK) {
+	for (size_t i = 0; i < length; i += sizeof (int) + ChunkSize) {
 		int id;
 		Chunk chunk;
 		
@@ -42,11 +42,11 @@ void StashHelper::Save(std::string filename, Stash &stash)
 	file.open(filename, std::ios::out | std::ios::binary | std::ios::trunc);
 	
 	for (auto b : stash) {
-		bytes<sizeof (int) + CHUNK> plaintext;
+		bytes<sizeof (int) + ChunkSize> plaintext;
 		
 		// Copy data to slab
 		memcpy(plaintext.data(), &b.first, sizeof (int));
-		memcpy(plaintext.data() + sizeof (int), &b.second, CHUNK);
+		memcpy(plaintext.data() + sizeof (int), &b.second, ChunkSize);
 		
 		File::Write(file, plaintext.data(), plaintext.size());
 	}

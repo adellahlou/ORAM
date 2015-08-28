@@ -87,8 +87,8 @@ bool FileStorage::Add(std::string filename)
 	FileInfo &info = files[filename];
 	info.length = File::GetLength(file);
 	
-	for (size_t i = 0; i < info.length; i += CHUNK) {
-		int readLength = std::min(CHUNK, info.length - i);
+	for (size_t i = 0; i < info.length; i += ChunkSize) {
+		int readLength = std::min(ChunkSize, info.length - i);
 		
 		Chunk chunk = {0};
 		File::Read(file, chunk.data(), readLength);
@@ -135,7 +135,7 @@ std::pair<std::string, FileInfo> LoadFile(std::istringstream &sstream)
 	FileInfo info;
 	sstream >> info.length;
 
-	for (size_t i = 0; i < info.length; i += CHUNK) {
+	for (size_t i = 0; i < info.length; i += ChunkSize) {
 		int blockID;
 		sstream >> blockID;
 	
@@ -172,9 +172,9 @@ std::string SaveFile(std::string filename, FileInfo info)
 	sstream << ' ';
 	sstream << info.length;
 	
-	for (size_t i = 0; i < info.length; i += CHUNK) {
+	for (size_t i = 0; i < info.length; i += ChunkSize) {
 		sstream << ' ';
-		sstream << info.blocks[i/CHUNK];
+		sstream << info.blocks[i/ChunkSize];
 	}
 	
 	return sstream.str();

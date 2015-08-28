@@ -68,15 +68,15 @@ void Write(ORAM &oram, FileInfo info)
     std::fstream file;
     file.open("output.ppm", std::fstream::out | std::fstream::binary | std::fstream::trunc);
             
-    for (size_t i = 0; i < info.length; i += CHUNK) {
-        int writeLength = std::min(CHUNK, info.length - i);
-        int blockID = info.blocks[i/CHUNK];
+    for (size_t i = 0; i < info.length; i += ChunkSize) {
+        int writeLength = std::min(ChunkSize, info.length - i);
+        int blockID = info.blocks[i/ChunkSize];
         
         Chunk buffer;
         oram.Access(ORAM::READ, buffer, blockID);
         file.write((char *) buffer.data(), writeLength);
         
-        printf("\r%zu / %zu", i/CHUNK + 1, info.length/CHUNK);
+        printf("\r%zu / %zu", i/ChunkSize + 1, info.length/ChunkSize);
         fflush(stdout);
     }
     file.close();
@@ -87,7 +87,7 @@ int MBtoDepth(size_t mb)
 {
 	mb *= 1024*1024;
 	
-	size_t blocks = ceil(mb/(double) CHUNK);
+	size_t blocks = ceil(mb/(double) ChunkSize);
 	size_t buckets = ceil(blocks/(double) Z);
 	
 	return ceil(log2(buckets+1))-1;
