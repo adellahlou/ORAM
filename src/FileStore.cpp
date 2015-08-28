@@ -16,8 +16,8 @@ static size_t GetFileSize(int fd)
 	return size;
 }
 
-FileStore::FileStore(std::string filename, size_t size)
-: size(size)
+FileStore::FileStore(std::string filename, size_t num, size_t size)
+: num(num), size(size)
 {
 	// Open the file
 	int oflags = O_RDWR | O_CREAT;
@@ -29,7 +29,7 @@ FileStore::FileStore(std::string filename, size_t size)
 	}
 
 	size_t currentSize = GetFileSize(fd);
-	size_t totalSize = size*BlockSize;
+	size_t totalSize = num*size;
 
 	// Resize the file if needed
 	if (currentSize != totalSize) {
@@ -49,7 +49,7 @@ FileStore::FileStore(std::string filename, size_t size)
 
 FileStore::~FileStore()
 {
-	if (munmap(map, size*BlockSize) == -1) {
+	if (munmap(map, num*size) == -1) {
 		perror("Failed to unmap file");
 		exit(1);
 	}
@@ -59,18 +59,20 @@ FileStore::~FileStore()
 
 block FileStore::Read(size_t pos)
 {
-	block b;
-	//memcpy(b.data(), &map[pos*BlockSize], BlockSize);
-
-	std::copy(&map[pos*BlockSize], &map[pos*BlockSize] + BlockSize, b.begin());
+	block b(size);
+	std::copy(&map[pos*size], &map[pos*size] + size, b.begin());
 
 	return b;
 }
 
 void FileStore::Write(size_t pos, block b)
 {
-	//memcpy(&map[pos*BlockSize], b.data(), BlockSize);
-	std::copy(b.begin(), b.end(), &map[pos*BlockSize]);
+	std::copy(b.begin(), b.end(), &map[pos*size]);
+}
+
+size_t FileStore::GetNum()
+{
+	return num;
 }
 
 size_t FileStore::GetSize()

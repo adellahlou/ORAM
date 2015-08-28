@@ -35,7 +35,6 @@ bool StashHelper::Load(std::string filename, Stash &stash)
 	return true;
 }
 
-
 void StashHelper::Save(std::string filename, Stash &stash)
 {
 	std::fstream file;
