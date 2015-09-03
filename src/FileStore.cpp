@@ -4,8 +4,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <cstdlib>
+#include <cassert>
 
-static size_t GetFileSize(int fd)
+size_t GetFileSize(int fd)
 {
 	// Jump to the end of the file
 	size_t size = lseek(fd, 0L, SEEK_END);
@@ -16,8 +17,8 @@ static size_t GetFileSize(int fd)
 	return size;
 }
 
-FileStore::FileStore(std::string filename, size_t num, size_t size)
-: num(num), size(size)
+FileStore::FileStore(std::string filename, size_t count, size_t size)
+: count(count), size(size)
 {
 	// Open the file
 	int oflags = O_RDWR | O_CREAT;
@@ -29,7 +30,7 @@ FileStore::FileStore(std::string filename, size_t num, size_t size)
 	}
 
 	size_t currentSize = GetFileSize(fd);
-	size_t totalSize = num*size;
+	size_t totalSize = count*size;
 
 	// Resize the file if needed
 	if (currentSize != totalSize) {
@@ -49,7 +50,7 @@ FileStore::FileStore(std::string filename, size_t num, size_t size)
 
 FileStore::~FileStore()
 {
-	if (munmap(map, num*size) == -1) {
+	if (munmap(map, count*size) == -1) {
 		perror("Failed to unmap file");
 		exit(1);
 	}
@@ -59,6 +60,8 @@ FileStore::~FileStore()
 
 block FileStore::Read(size_t pos)
 {
+	assert(pos < GetBlockCount());
+	
 	block b(size);
 	std::copy(&map[pos*size], &map[pos*size] + size, b.begin());
 
@@ -67,15 +70,18 @@ block FileStore::Read(size_t pos)
 
 void FileStore::Write(size_t pos, block b)
 {
+	assert(pos < GetBlockCount());
+	assert(b.size() == GetBlockSize());
+	
 	std::copy(b.begin(), b.end(), &map[pos*size]);
 }
 
-size_t FileStore::GetNum()
+size_t FileStore::GetBlockCount()
 {
-	return num;
+	return count;
 }
 
-size_t FileStore::GetSize()
+size_t FileStore::GetBlockSize()
 {
 	return size;
 }

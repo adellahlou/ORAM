@@ -1,7 +1,7 @@
 #include "RAMStore.hpp"
 	
-RAMStore::RAMStore(size_t num, size_t size)
-: store(num), size(size)
+RAMStore::RAMStore(size_t count, size_t size)
+: store(count), size(size)
 {}
 
 RAMStore::~RAMStore()
@@ -17,12 +17,12 @@ void RAMStore::Write(size_t pos, block b)
 	store[pos] = b;
 }
 
-size_t RAMStore::GetNum()
+size_t RAMStore::GetBlockCount()
 {
 	return store.size();
 }
 
-size_t RAMStore::GetSize()
+size_t RAMStore::GetBlockSize()
 {
 	return size;
 }
