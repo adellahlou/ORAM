@@ -120,6 +120,7 @@ block AES::Decrypt(bytes<Key> key, bytes<IV> iv, block ciphertext)
 // given the length of a plaintext
 int AES::GetCiphertextLength(int plen)
 {
+	// Round up to the next 16 bytes (due to padding)
 	return (plen/16 + 1) * 16;
 }
 

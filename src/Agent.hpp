@@ -11,13 +11,15 @@ using PositionMap = std::vector<int64_t>;
 using BlockMap = std::unordered_map<int64_t, std::vector<size_t>>;
 
 class Agent {
-	std::shared_ptr<BlockStore> store;
+	BlockStore *store;
+	
+	size_t count, size;
 
 	block Encrypt(block plaintext);
 	block Decrypt(block ciphertext);
 
 public:
-	Agent(BlockStore *store);
+	Agent(BlockStore *store, size_t count, size_t size);
 	~Agent();
 
 	enum Op {
@@ -25,7 +27,12 @@ public:
 		WRITE
 	};
 	
-	void Access(Op op, int64_t bid, block data);
+	block Access(Op op, int64_t bid, block data);
 
-	size_t GetNum();
+	PositionMap LoadPositionMap();
+
+	static BlockMap GenerateBlockMap(PositionMap posMap);
+
+	size_t GetBlockCount();
+	size_t GetBlockSize();
 };
