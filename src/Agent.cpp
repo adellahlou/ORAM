@@ -1,5 +1,4 @@
 #include "Agent.hpp"
-#include "AES.hpp"
 #include "FileStore.hpp"
 #include "File.hpp"
 
@@ -15,8 +14,8 @@ void error(const char *str)
 	exit(1);
 }
 
-Agent::Agent(BlockStore *store, size_t count, size_t size)
-: store(store), count(count), size(size)
+Agent::Agent(BlockStore *store, size_t count, size_t size, bytes<Key> key)
+: store(store), count(count), size(size), key(key)
 {
 	size_t clen = IV + AES::GetCiphertextLength(GetBlockSize());
 	
@@ -39,8 +38,6 @@ block Agent::Encrypt(block plaintext)
 	assert(plaintext.size() == GetBlockSize());
 
 	bytes<IV> iv = AES::GenerateIV();
-	bytes<Key> key;
-	std::fill(key.begin(), key.end(), 0);
 
 	block ciphertext = AES::Encrypt(key, iv, plaintext);
 
@@ -59,9 +56,6 @@ block Agent::Decrypt(block ciphertext)
 	std::copy(ciphertext.begin(), ciphertext.begin() + IV, iv.begin());
 
 	ciphertext.erase(ciphertext.begin(), ciphertext.begin() + IV);
-
-	bytes<Key> key;
-	std::fill(key.begin(), key.end(), 0);
 
 	// Perform the decryption
 	block plaintext = AES::Decrypt(key, iv, ciphertext);
@@ -173,7 +167,7 @@ block Agent::Access(Op op, int64_t bid, block data)
 
 	block ciphertext;
 	block plaintext;
-	
+
 	if (op == READ) {
 		size_t pos = GetBlockPosition(bid, posMap, blockMap);
 
@@ -209,8 +203,7 @@ block Agent::Access(Op op, int64_t bid, block data)
 	SavePositionMap(posMap);
 
 	return plaintext;
-}
-
+} 
 size_t Agent::GetBlockCount()
 {
 	return count;

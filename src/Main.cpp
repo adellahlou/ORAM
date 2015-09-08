@@ -2,6 +2,8 @@
 #include "Timer.hpp"
 #include "FileStorage.hpp"
 #include "File.hpp"
+#include "Agent.hpp"
+#include "FileStore.hpp"
 
 #include <functional>
 #include <fstream>
@@ -11,15 +13,34 @@
 int MBtoDepth(size_t mb);
 double Profile(std::function<void()> fun);
 void Write(ORAM &oram, FileInfo info);
+void read(Agent &agent);
+void right(Agent &agent, size_t length);
 
 int main(int argc, char **argv)
 {
+	AES::Setup();
+	
+	srand(time(NULL));
+	
+	int blockSize = 1000000;
+
+	BlockStore *store = new FileStore("moo.bin", 1000*2, IV + AES::GetCiphertextLength(blockSize));
+	
+	bytes<Key> key {0};
+	Agent agent(store, 1000, blockSize, key);
+
+	//read(agent);
+
+	right(agent, 1000*1000*1000);
+	
+	AES::Cleanup();
+
+	return 0;
+
 	if (argc != 2) {
 		fputs("requires a depth argument", stderr);
 		return 1;
 	}
-	
-	AES::Setup();
 	
 	//size_t mb = 20;
 	//size_t depth = MBtoDepth(mb);
@@ -57,8 +78,61 @@ int main(int argc, char **argv)
 	printf("\nAverage time = %f\n", elapsedTime/10.0);
 	
 	files.Save();
+}
+
+void read(Agent &agent)
+{
+	puts("reading");
 	
-	AES::Cleanup();
+	std::fstream file;
+	file.open("input.bin", std::ios::in | std::ios::binary);
+
+	if (!file.good()) {
+		return;
+	}
+
+	size_t length = File::GetLength(file);
+	size_t blockSize = agent.GetBlockSize();
+	
+	for (size_t i = 0; i < length; i += blockSize) {
+		size_t readLength = std::min(blockSize, length - i);
+		int64_t bid = i/blockSize;
+
+		block b(blockSize);
+		
+		file.read((char *) b.data(), readLength);
+		agent.Access(Agent::WRITE, bid, b);
+
+		printf("\r%zu/%zu", i/blockSize + 1, length/blockSize);
+		fflush(stdout);
+	}
+	puts("\n");
+
+	file.close();
+}
+
+void right(Agent &agent, size_t length)
+{
+	puts("righting");
+
+	std::fstream file;
+	file.open("output.bin", std::ios::out | std::ios::binary | std::ios::trunc);
+
+	size_t blockSize = agent.GetBlockSize();
+
+	for (size_t i = 0; i < length; i += blockSize) {
+		size_t writeLength = std::min(blockSize, length - i);
+		int64_t bid = i/blockSize;
+
+		block b = agent.Access(Agent::READ, bid, {});
+		file.write((char *) b.data(), writeLength);
+
+		printf("\r%zu/%zu", i/blockSize + 1, length/blockSize);
+		fflush(stdout);
+	}
+	puts("\n");
+
+	file.close();
 }
 
 void Write(ORAM &oram, FileInfo info)
@@ -66,14 +140,14 @@ void Write(ORAM &oram, FileInfo info)
     puts("writing");
     
     std::fstream file;
-    file.open("output.ppm", std::fstream::out | std::fstream::binary | std::fstream::trunc);
+    file.open("output.bin", std::fstream::out | std::fstream::binary | std::fstream::trunc);
             
     for (size_t i = 0; i < info.length; i += ChunkSize) {
         int writeLength = std::min(ChunkSize, info.length - i);
-        int blockID = info.blocks[i/ChunkSize];
+        int bid = info.blocks[i/ChunkSize];
         
         Chunk buffer;
-        oram.Access(ORAM::READ, buffer, blockID);
+        oram.Access(ORAM::READ, bid, buffer);
         file.write((char *) buffer.data(), writeLength);
         
         printf("\r%zu / %zu", i/ChunkSize + 1, info.length/ChunkSize);

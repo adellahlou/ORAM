@@ -1,6 +1,7 @@
 #pragma once
 
 #include "BlockStore.hpp"
+#include "AES.hpp"
 
 #include <cstdint>
 #include <memory>
@@ -15,11 +16,13 @@ class Agent {
 	
 	size_t count, size;
 
+	bytes<Key> key;
+	
 	block Encrypt(block plaintext);
 	block Decrypt(block ciphertext);
 
 public:
-	Agent(BlockStore *store, size_t count, size_t size);
+	Agent(BlockStore *store, size_t count, size_t size, bytes<Key> key);
 	~Agent();
 
 	enum Op {
