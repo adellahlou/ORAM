@@ -94,10 +94,10 @@ bool FileStorage::Add(std::string filename)
 		File::Read(file, chunk.data(), readLength);
 		
 		// Generate random blockID
-		int id = GetAvailableID();
-		info.blocks.push_back(id);
+		int bid = GetAvailableID();
+		info.blocks.push_back(bid);
 		
-		oram.Access(ORAM::WRITE, chunk, id);
+		oram.Access(ORAM::WRITE, bid, chunk);
 		
 		//printf("\r%zu / %zu", i/CHUNK + 1, info.length/CHUNK);
 		//fflush(stdout);
