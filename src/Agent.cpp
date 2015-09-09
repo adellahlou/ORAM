@@ -33,36 +33,6 @@ Agent::~Agent()
 	delete store;
 }
 
-block Agent::Encrypt(block plaintext)
-{
-	assert(plaintext.size() == GetBlockSize());
-
-	bytes<IV> iv = AES::GenerateIV();
-
-	block ciphertext = AES::Encrypt(key, iv, plaintext);
-
-	// Put randomised IV at the front
-	ciphertext.insert(ciphertext.begin(), iv.begin(), iv.end());
-
-	return ciphertext;
-}
-
-block Agent::Decrypt(block ciphertext)
-{
-	assert(ciphertext.size() == store->GetBlockSize());
-
-	// Extract the IV
-	bytes<IV> iv;
-	std::copy(ciphertext.begin(), ciphertext.begin() + IV, iv.begin());
-
-	ciphertext.erase(ciphertext.begin(), ciphertext.begin() + IV);
-
-	// Perform the decryption
-	block plaintext = AES::Decrypt(key, iv, ciphertext);
-
-	return plaintext;
-}
-
 PositionMap Agent::LoadPositionMap()
 {
 	size_t num = store->GetBlockCount();
@@ -173,9 +143,9 @@ block Agent::Access(Op op, int64_t bid, block data)
 
 		// Retrieve plaintext
 		ciphertext = store->Read(pos);
- 		plaintext = Decrypt(ciphertext);
+ 		plaintext = AES::Decrypt(key, ciphertext);
 	} else {
-		// Fake a read here
+		// TODO: Fake a read here
 	}
 
 	// Generate a new position
@@ -183,9 +153,9 @@ block Agent::Access(Op op, int64_t bid, block data)
 	
 	// Re-encrypt the data
 	if (op == WRITE) {
-		ciphertext = Encrypt(data);
+		ciphertext = AES::Encrypt(key, data);
 	} else {
-		ciphertext = Encrypt(plaintext);
+		ciphertext = AES::Encrypt(key, plaintext);
 	}
 
 	store->Write(newPos, ciphertext);
@@ -203,7 +173,8 @@ block Agent::Access(Op op, int64_t bid, block data)
 	SavePositionMap(posMap);
 
 	return plaintext;
-} 
+}
+
 size_t Agent::GetBlockCount()
 {
 	return count;

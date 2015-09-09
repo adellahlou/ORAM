@@ -1,4 +1,5 @@
 #include "AES.hpp"
+#include "Log.hpp"
 
 #include <openssl/evp.h>
 #include <openssl/err.h>
@@ -22,15 +23,13 @@ void AES::Cleanup()
 	ERR_free_strings();
 }
 
-static void error(std::string msg)
+static void error(const char *msg)
 {
-	fprintf(stderr, "fatal error: %s\n", msg.c_str());
 	ERR_print_errors_fp(stderr);
-	
-	abort();
+	Log::Write(Log::FATAL, msg);
 }
 
-int AES::Encrypt(bytes<Key> key, bytes<IV> iv, byte_t *plaintext, int plen, byte_t *ciphertext)
+int AES::EncryptBytes(bytes<Key> key, bytes<IV> iv, byte_t *plaintext, int plen, byte_t *ciphertext)
 {
 	EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
 	
@@ -61,7 +60,7 @@ int AES::Encrypt(bytes<Key> key, bytes<IV> iv, byte_t *plaintext, int plen, byte
 	return clen;
 }
 
-int AES::Decrypt(bytes<Key> key, bytes<IV> iv, byte_t *ciphertext, int clen, byte_t *plaintext)
+int AES::DecryptBytes(bytes<Key> key, bytes<IV> iv, byte_t *ciphertext, int clen, byte_t *plaintext)
 {
 	EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
 	
@@ -92,23 +91,23 @@ int AES::Decrypt(bytes<Key> key, bytes<IV> iv, byte_t *ciphertext, int clen, byt
 	return plen;
 }
 
-block AES::Encrypt(bytes<Key> key, bytes<IV> iv, block plaintext)
+block AES::EncryptBlock(bytes<Key> key, bytes<IV> iv, block plaintext)
 {
 	int clen = GetCiphertextLength(plaintext.size());
 	block ciphertext(clen);
 
 	int plen = plaintext.size();
-	Encrypt(key, iv, plaintext.data(), plen, ciphertext.data());
+	EncryptBytes(key, iv, plaintext.data(), plen, ciphertext.data());
 	
 	return ciphertext;
 }
 
-block AES::Decrypt(bytes<Key> key, bytes<IV> iv, block ciphertext)
+block AES::DecryptBlock(bytes<Key> key, bytes<IV> iv, block ciphertext)
 {
 	int clen = ciphertext.size();
 	block plaintext(clen);
 
-	int plen = Decrypt(key, iv, ciphertext.data(), clen, plaintext.data());
+	int plen = DecryptBytes(key, iv, ciphertext.data(), clen, plaintext.data());
 
 	// Trim plaintext to actual size
 	plaintext.resize(plen);
@@ -116,8 +115,32 @@ block AES::Decrypt(bytes<Key> key, bytes<IV> iv, block ciphertext)
 	return plaintext;
 }
 
-// Gets the length of the corresponding ciphertext
-// given the length of a plaintext
+block AES::Encrypt(bytes<Key> key, block plaintext)
+{
+	bytes<IV> iv = AES::GenerateIV();
+	
+	block ciphertext = EncryptBlock(key, iv, plaintext);
+
+	// Put randomised IV at the front of the ciphertext
+	ciphertext.insert(ciphertext.begin(), iv.begin(), iv.end());
+
+	return ciphertext;
+}
+
+block AES::Decrypt(bytes<Key> key, block ciphertext)
+{
+	// Extract the IV
+	bytes<IV> iv;
+	std::copy(ciphertext.begin(), ciphertext.begin() + IV, iv.begin());
+
+	ciphertext.erase(ciphertext.begin(), ciphertext.begin() + IV);
+
+	// Perform the decryption
+	block plaintext = DecryptBlock(key, iv, ciphertext);
+
+	return plaintext;
+}
+
 int AES::GetCiphertextLength(int plen)
 {
 	// Round up to the next 16 bytes (due to padding)
@@ -129,6 +152,7 @@ bytes<IV> AES::GenerateIV()
 	bytes<IV> iv;
 	
 	if (RAND_bytes(iv.data(), iv.size()) != 1) {
+		// Bytes generated aren't cryptographically strong
 		error("Needs more entropy");
 	}
 	

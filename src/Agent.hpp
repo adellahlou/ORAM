@@ -17,9 +17,6 @@ class Agent {
 	size_t count, size;
 
 	bytes<Key> key;
-	
-	block Encrypt(block plaintext);
-	block Decrypt(block ciphertext);
 
 public:
 	Agent(BlockStore *store, size_t count, size_t size, bytes<Key> key);
