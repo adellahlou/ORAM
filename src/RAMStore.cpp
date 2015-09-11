@@ -26,3 +26,8 @@ size_t RAMStore::GetBlockSize()
 {
 	return size;
 }
+
+bool RAMStore::WasSerialised()
+{
+	return false;
+}

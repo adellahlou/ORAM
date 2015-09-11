@@ -8,6 +8,8 @@ class FileStore: public BlockStore {
 	byte_t *map;
 	size_t count, size;
 
+	bool wasSerialised;
+
 public:
 	FileStore(std::string filename, size_t count, size_t size);
 	~FileStore();
@@ -17,4 +19,6 @@ public:
 
 	size_t GetBlockCount();
 	size_t GetBlockSize();
+
+	bool WasSerialised();
 };

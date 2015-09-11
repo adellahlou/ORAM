@@ -32,6 +32,10 @@ FileStore::FileStore(std::string filename, size_t count, size_t size)
 	size_t currentSize = GetFileSize(fd);
 	size_t totalSize = count*size;
 
+	// The file was serialied if the size is
+	// the same as the expected size
+	wasSerialised = currentSize == totalSize;
+
 	// Resize the file if needed
 	if (currentSize != totalSize) {
 		ftruncate(fd, totalSize);
@@ -84,4 +88,9 @@ size_t FileStore::GetBlockCount()
 size_t FileStore::GetBlockSize()
 {
 	return size;
+}
+
+bool FileStore::WasSerialised()
+{
+	return wasSerialised;
 }

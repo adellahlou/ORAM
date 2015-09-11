@@ -15,4 +15,6 @@ public:
 
 	size_t GetBlockCount();
 	size_t GetBlockSize();
+
+	bool WasSerialised();
 };

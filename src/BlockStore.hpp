@@ -19,4 +19,6 @@ public:
 
 	virtual size_t GetBlockCount() = 0;
 	virtual size_t GetBlockSize() = 0;
+
+	virtual bool WasSerialised() = 0;
 };
