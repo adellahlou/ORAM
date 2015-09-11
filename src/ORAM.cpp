@@ -1,29 +1,59 @@
 #include "ORAM.hpp"
 #include "Position.hpp"
+#include "Log.hpp"
 
 #include <algorithm>
 #include <random>
 #include <cmath>
+#include <cassert>
+#include <cstring>
 
-ORAM::ORAM(int depth, bytes<Key> key)
-: key(key), tree("tree.bin", depth, key), position(new int[tree.GetBlocks()]), rd(), mt(rd()), dis(0, tree.GetBuckets()/2)
+ORAM::ORAM(BlockStore *store, size_t depth, size_t blockSize, bytes<Key> key)
+: store(store), depth(depth), blockSize(blockSize), key(key), position(new int[GetBlockCount()]), rd(), mt(rd()), dis(0, GetBucketCount()/2)
 {
-	StashHelper::Load("stash.bin", stash);
+	if (blockSize != store->GetBlockSize()) {
+		Log::Write(Log::WARNING, "TODO(FIX ERROR MSG) Block size doesn't match stores");
+	}
+
+	if (GetBucketCount() < store->GetBlockCount()) {
+		Log::Write(Log::FATAL, "Store does not contain enough buckets");
+	}
+
+	bool stashExists = StashHelper::Load("stash.bin", stash, blockSize);
 	
-	bool positionExists = PositionHelper::Load("pos.bin", position, tree.GetBlocks());
+	bool positionExists = PositionHelper::Load("pos.bin", position, GetBlockCount());
 	
 	if (!positionExists) {
 		// Initialise blocks with random paths
-		for (int i = 0; i < tree.GetBlocks(); i++) {
+		for (size_t i = 0; i < GetBlockCount(); i++) {
 			position[i] = RandomPath();
+		}
+	}
+
+	wasSerialised = store->WasSerialised() && positionExists && stashExists;
+
+	// Intialise state of ORAM is new
+	if (!wasSerialised) {
+		for (size_t i = 0; i < GetBucketCount(); i++) {
+			printf("filling bucket %zu\n", i);
+			Bucket bucket;
+
+			for (int z = 0; z < Z; z++) {
+				bucket[z].id = -1;
+				bucket[z].data.resize(blockSize, 0);
+			}
+
+			WriteBucket(i, bucket);
 		}
 	}
 }
 
 ORAM::~ORAM()
 {
-	PositionHelper::Save("pos.bin", position, tree.GetBlocks());
-	StashHelper::Save("stash.bin", stash);
+	PositionHelper::Save("pos.bin", position, GetBlockCount());
+	StashHelper::Save("stash.bin", stash, blockSize);
+
+	delete store;
 }
 
 // Generate a random path (a leaf node)
@@ -36,7 +66,7 @@ int ORAM::RandomPath()
 // that lise on a specific path
 int ORAM::GetNodeOnPath(int leaf, int depth)
 {
-	leaf += GetBuckets()/2;
+	leaf += GetBucketCount()/2;
 	for (int d = GetDepth() - 1; d >= depth; d--) {
 		leaf = (leaf + 1)/2 - 1;
 	}
@@ -44,13 +74,89 @@ int ORAM::GetNodeOnPath(int leaf, int depth)
 	return leaf;
 }
 
+block int32_to_bytes(int32_t n)
+{
+	block b(sizeof (n));
+	
+	memcpy(b.data(), &n, sizeof (n));
+
+	return b;
+}
+
+int32_t block_to_int32(block b)
+{
+	int32_t n;
+
+	memcpy(b.data(), &n, sizeof (n));
+	
+	return n;
+}
+
+// Write bucket to a single block
+block ORAM::SerialiseBucket(Bucket bucket)
+{
+	block buffer;
+
+	for (int z = 0; z < Z; z++) {
+		Block b = bucket[z];
+	
+		// Write block ID
+		block idBlock = int32_to_bytes(b.id);
+		buffer.insert(buffer.end(), idBlock.begin(), idBlock.end());
+
+		assert(b.data.size() == blockSize);
+
+		// Write block data
+		buffer.insert(buffer.end(), b.data.begin(), b.data.end());
+	}
+
+	assert(buffer.size() == Z*(sizeof (int32_t) + blockSize));
+	
+	return buffer;
+}
+
+Bucket ORAM::DeserialiseBucket(block buffer)
+{
+	assert(buffer.size() == Z*(sizeof (int32_t) + blockSize));
+	
+	Bucket bucket;
+
+	for (int z = 0; z < Z; z++) {
+		Block &block = bucket[z];
+
+		block.id = *((int32_t *) buffer.data());
+		buffer.erase(buffer.begin(), buffer.begin() + sizeof (int32_t));
+
+		block.data.assign(buffer.begin(), buffer.begin() + blockSize);
+		buffer.erase(buffer.begin(), buffer.begin() + blockSize);
+	}
+
+	return bucket;	
+}
+
+Bucket ORAM::ReadBucket(int bid)
+{
+	block ciphertext = store->Read(bid);
+	block buffer = AES::Decrypt(key, ciphertext);
+
+	Bucket bucket = DeserialiseBucket(buffer);
+	return bucket;
+}
+
+void ORAM::WriteBucket(int bid, Bucket bucket)
+{
+	block b = SerialiseBucket(bucket);
+
+	block ciphertext = AES::Encrypt(key, b);
+	store->Write(bid, ciphertext);
+}
+
 // Fetches blocks along a path, adding
 // them to the stash
 void ORAM::FetchPath(int x)
 {
-	for (int d = 0; d <= GetDepth(); d++) {
-		Bucket bucket;
-		tree.Read(bucket, GetNodeOnPath(x, d), key);
+	for (size_t d = 0; d <= GetDepth(); d++) {
+		Bucket bucket = ReadBucket(GetNodeOnPath(x, d));
 		
 		for (int z = 0; z < Z; z++) {
 			Block &block = bucket[z];
@@ -71,9 +177,9 @@ std::vector<int> ORAM::GetIntersectingBlocks(int x, int depth)
 	int node = GetNodeOnPath(x, depth);
 	
 	for (auto b : stash) {
-		int id = b.first;
-		if (GetNodeOnPath(position[id], depth) == node) {
-			validBlocks.push_back(id);
+		int bid = b.first;
+		if (GetNodeOnPath(position[bid], depth) == node) {
+			validBlocks.push_back(bid);
 		}
 	}
 
@@ -104,61 +210,92 @@ void ORAM::WritePath(int x)
 		// Fill any empty spaces with dummy blocks
 		for (int z = validBlocks.size(); z < Z; z++) {
 			Block &block = bucket[z];
+
 			block.id = -1;
+			block.data.resize(blockSize, 0);
 		}
 		
 		// Write bucket to tree
-		tree.Write(bucket, node, key);
+		WriteBucket(node, bucket);
 	}
 }
 
 // Gets the data of a block in the stash
-void ORAM::ReadData(Chunk &chunk, int blockID)
-{
+block ORAM::ReadData(int bid)
+{	
 	// Create block if it doesn't exist
-	auto iter = stash.find(blockID);
+	auto iter = stash.find(bid);
 	if (iter == stash.end()) {
-		stash[blockID].fill(0);
+		// New blocks are zeroed out
+		stash[bid].resize(blockSize, 0);
 	}
 	
-	chunk = stash[blockID];
+	return stash[bid];
 }
 
 // Updates the data of a block in the stash
-void ORAM::WriteData(Chunk &chunk, int blockID)
+void ORAM::WriteData(int bid, block b)
 {
-	stash[blockID] = chunk;
+	assert(b.size() == blockSize);
+
+	stash[bid] = b;
 }
 
 // Fetches a block, allowing you to read and write 
 // in a block
-void ORAM::Access(Op op, Chunk &chunk, int blockID)
+void ORAM::Access(Op op, int bid, block &b)
 {
-	int x = position[blockID];
-	position[blockID] = RandomPath();
+	int x = position[bid];
+	position[bid] = RandomPath();
 	
 	FetchPath(x);
 	
 	if (op == READ) {
-		ReadData(chunk, blockID);
+		b = ReadData(bid);
 	} else {
-		WriteData(chunk, blockID);
+		WriteData(bid, b);
 	}
 	
 	WritePath(x);
 }
 
-int ORAM::GetDepth() const
+block ORAM::Read(size_t bid)
 {
-	return tree.GetDepth();
+	block b;
+	Access(READ, bid, b);
+	
+	return b;
 }
 
-int ORAM::GetBlocks() const
+void ORAM::Write(size_t bid, block b)
 {
-	return tree.GetBlocks();
+	assert(blockSize == b.size());
+
+	Access(WRITE, bid, b);
 }
 
-int ORAM::GetBuckets() const
+size_t ORAM::GetDepth()
 {
-	return tree.GetBuckets();
-}	
+	return depth;
+}
+
+size_t ORAM::GetBlockCount()
+{
+	return Z*GetBucketCount();
+}
+
+size_t ORAM::GetBlockSize()
+{
+	return blockSize;
+}
+
+size_t ORAM::GetBucketCount()
+{
+	size_t bucketCount = pow(2, GetDepth() + 1) - 1;
+	return bucketCount;
+}
+
+bool ORAM::WasSerialised()
+{
+	return wasSerialised;
+}

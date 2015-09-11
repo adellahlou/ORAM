@@ -19,10 +19,11 @@ void Log::Write(LogType type, const char *msg)
 
 	}
 
+	// Just display the message
 	fprintf(stderr, "%s: %s\n", prefix, msg);
 
-	// Quit program on fatal error
+	// Fatal errors stop the program
 	if (type == FATAL) {
-		exit(1);
+		abort();
 	}
 }

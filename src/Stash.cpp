@@ -4,7 +4,7 @@
 #include <fstream>
 #include <cstring>
 
-bool StashHelper::Load(std::string filename, Stash &stash)
+bool StashHelper::Load(std::string filename, Stash &stash, size_t blockSize)
 {
 	std::fstream file;
 	file.open(filename, std::ios::in | std::ios::binary);
@@ -16,38 +16,39 @@ bool StashHelper::Load(std::string filename, Stash &stash)
 	size_t length = File::GetLength(file);
 	
 	// Does length correctly align?
-	if (length % (sizeof (int) + ChunkSize)) {
+	if (length % (sizeof (int) + blockSize)) {
 		file.close();
 		return false;
 	}
 	
-	for (size_t i = 0; i < length; i += sizeof (int) + ChunkSize) {
-		int id;
-		Chunk chunk;
+	for (size_t i = 0; i < length; i += sizeof (int32_t) + blockSize) {
+		int32_t id;
+		block b(blockSize);
 		
-		File::Read(file, (byte_t *) &id, sizeof (int));
-		File::Read(file, chunk.data(), chunk.size());
+		File::Read(file, (byte_t *) &id, sizeof (int32_t));
+		File::Read(file, b.data(), b.size());
 		
-		stash[id] = chunk;
+		// Place block into the stash
+		stash[id] = b;
 	}
 	
 	file.close();
 	return true;
 }
 
-void StashHelper::Save(std::string filename, Stash &stash)
+void StashHelper::Save(std::string filename, Stash &stash, size_t blockSize)
 {
 	std::fstream file;
 	file.open(filename, std::ios::out | std::ios::binary | std::ios::trunc);
 	
-	for (auto b : stash) {
-		bytes<sizeof (int) + ChunkSize> plaintext;
-		
+	for (auto s : stash) {
+		block b(sizeof (int) + blockSize);
+	
 		// Copy data to slab
-		memcpy(plaintext.data(), &b.first, sizeof (int));
-		memcpy(plaintext.data() + sizeof (int), &b.second, ChunkSize);
-		
-		File::Write(file, plaintext.data(), plaintext.size());
+		b.insert(b.end(), &s.first, &s.first + sizeof (int32_t));
+		b.insert(b.end(), s.second.begin(), s.second.end());
+
+		File::Write(file, b.data(), b.size());
 	}
 	
 	file.close();

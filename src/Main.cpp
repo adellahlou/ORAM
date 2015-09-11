@@ -1,8 +1,9 @@
 #include "ORAM.hpp"
 #include "Timer.hpp"
-#include "FileStorage.hpp"
+#include "FileSystem.hpp"
 #include "File.hpp"
 #include "Agent.hpp"
+#include "RAMStore.hpp"
 #include "FileStore.hpp"
 
 #include <functional>
@@ -10,7 +11,7 @@
 
 #include <cstdio>
 
-int MBtoDepth(size_t mb);
+int MBtoDepth(size_t mb, size_t blockSize = 4096);
 double Profile(std::function<void()> fun);
 void Write(ORAM &oram, FileInfo info);
 void read(Agent &agent);
@@ -19,23 +20,22 @@ void right(Agent &agent, size_t length);
 int main(int argc, char **argv)
 {
 	AES::Setup();
-	
+
 	srand(time(NULL));
 	
-	int blockSize = 1000000;
+//	int blockSize = 1000000;
 
-	BlockStore *store = new FileStore("moo.bin", 1000*2, IV + AES::GetCiphertextLength(blockSize));
+//	BlockStore *store = new FileStore("moo.bin", 1000*2, IV + AES::GetCiphertextLength(blockSize));
 	
 	bytes<Key> key {0};
-	Agent agent(store, 1000, blockSize, key);
+//	Agent agent(store, 1000, blockSize, key);
 
 	//read(agent);
 
-	right(agent, 1000*1000*1000);
+//	right(agent, 1000*1000*1000);
 	
-	AES::Cleanup();
+//	AES::Cleanup();
 
-	return 0;
 
 	if (argc != 2) {
 		fputs("requires a depth argument", stderr);
@@ -48,11 +48,41 @@ int main(int argc, char **argv)
 	
 	size_t depth = strtol(argv[1], nullptr, 10);
 	printf("depth = %zu\n", depth);
-	
-	ORAM oram(depth, {21});
-	printf("#blocks = %d\n", oram.GetBlocks());
-	
-	FileStorage files(oram);
+
+	size_t blockSize = 4096;
+	size_t storeBlockSize = IV + AES::GetCiphertextLength(Z*(sizeof (int32_t) + blockSize));
+
+	BlockStore *store = new FileStore("tree.bin", pow(2, depth + 1) - 1, storeBlockSize);
+	ORAM *oram = new ORAM(store, depth, blockSize, key);
+	printf("#blocks = %zu\n", oram->GetBlockCount());
+
+	/*
+	for (size_t bid = 0; bid < oram->GetBlockCount(); bid++) {
+		block block(blockSize);
+
+		for (size_t i = 0; i < block.size(); i++) {
+			block[i] = bid % 256;
+		}
+
+		oram->Access(ORAM::WRITE, bid, block);
+	}
+	*/
+
+	for (size_t bid = 0; bid < oram->GetBlockCount(); bid++) {
+		block result;
+		
+		oram->Access(ORAM::READ, bid, result);
+
+		printf("\nBlock %zu\n", bid);
+
+		for (auto c : result) {
+			printf("%d ", c);
+		}
+		puts("");
+	}
+
+	/*
+	FileSystem files(oram);
 	files.Load();
 	
 	std::string filename = "benchmark/Image.ppm";
@@ -68,7 +98,7 @@ int main(int argc, char **argv)
 				FileInfo info = files.GetFileInfo(filename);
 			
 				// Retrieve the file
-				Write(oram, info);
+				Write(*oram, info);
 			}
 		});
 		
@@ -78,6 +108,11 @@ int main(int argc, char **argv)
 	printf("\nAverage time = %f\n", elapsedTime/10.0);
 	
 	files.Save();
+	*/
+
+	delete oram;
+
+	AES::Cleanup();
 }
 
 void read(Agent &agent)
@@ -141,27 +176,29 @@ void Write(ORAM &oram, FileInfo info)
     
     std::fstream file;
     file.open("output.bin", std::fstream::out | std::fstream::binary | std::fstream::trunc);
-            
-    for (size_t i = 0; i < info.length; i += ChunkSize) {
-        int writeLength = std::min(ChunkSize, info.length - i);
-        int bid = info.blocks[i/ChunkSize];
+
+	size_t blockSize = oram.GetBlockSize();
+
+    for (size_t i = 0; i < info.length; i += blockSize) {
+        int writeLength = std::min(blockSize, info.length - i);
+        int bid = info.blocks[i/blockSize];
         
-        Chunk buffer;
+        block buffer;
         oram.Access(ORAM::READ, bid, buffer);
         file.write((char *) buffer.data(), writeLength);
         
-        printf("\r%zu / %zu", i/ChunkSize + 1, info.length/ChunkSize);
+        printf("\r%zu / %zu", i/blockSize + 1, info.length/blockSize);
         fflush(stdout);
     }
     file.close();
     puts("\n");
 }
 
-int MBtoDepth(size_t mb)
+int MBtoDepth(size_t mb, size_t blockSize /*= 4096*/)
 {
 	mb *= 1024*1024;
 	
-	size_t blocks = ceil(mb/(double) ChunkSize);
+	size_t blocks = ceil(mb/(double) blockSize);
 	size_t buckets = ceil(blocks/(double) Z);
 	
 	return ceil(log2(buckets+1))-1;

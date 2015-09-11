@@ -1,12 +1,13 @@
 #pragma once
 
-#include "Bucket.hpp"
+#include "BlockStore.hpp"
 
 #include <unordered_map>
+#include <cstdint>
 
-using Stash = std::unordered_map<int, Chunk>;
+using Stash = std::unordered_map<int32_t, block>;
 
 struct StashHelper {
-	static bool Load(std::string filename, Stash &stash);
-	static void Save(std::string filename, Stash &stash);
+	static bool Load(std::string filename, Stash &stash, size_t blockSize);
+	static void Save(std::string filename, Stash &stash, size_t blockSize);
 };

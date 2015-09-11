@@ -1,19 +1,37 @@
 #pragma once
 
-#include "BucketTree.hpp"
+#include "BlockStore.hpp"
 #include "Stash.hpp"
+#include "AES.hpp"
 
 #include <random>
 #include <vector>
 #include <unordered_map>
 
-class ORAM {
+// Each Blocks contain a unique
+// identifier and a chunk of data
+struct Block {
+	int32_t id;
+	block data;
+};
+
+// A bucket contains a number of Blocks
+constexpr int Z = 4;
+using Bucket = std::array<Block, Z>;
+
+class ORAM: public BlockStore {
+	BlockStore *store;
+	
+	size_t depth;	
+	size_t blockSize;
+	
 	bytes<Key> key;
 	
-	BucketTree tree;
 	int *position;
 	Stash stash;
 	
+	bool wasSerialised;
+
 	// Randomness
 	std::random_device rd;
 	std::mt19937 mt;
@@ -26,11 +44,17 @@ class ORAM {
 	void FetchPath(int x);
 	void WritePath(int x);
 	
-	void ReadData(Chunk &chunk, int blockID);
-	void WriteData(Chunk &chunk, int blockID);
+	block ReadData(int bid);
+	void WriteData(int bid, block b);
 	
+	block SerialiseBucket(Bucket bucket);
+	Bucket DeserialiseBucket(block buffer);
+
+	Bucket ReadBucket(int bid);
+	void WriteBucket(int bid, Bucket bucket);
+
 public:
-	ORAM(int depth, bytes<Key> key);
+	ORAM(BlockStore *store, size_t depth, size_t blockSize, bytes<Key> key);
 	~ORAM();
 	
 	enum Op {
@@ -38,9 +62,17 @@ public:
 		WRITE
 	};
 	
-	void Access(Op op, Chunk &chunk, int blockID);
+	void Access(Op op, int bid, block &b);
+
+	block Read(size_t bid);
+	void Write(size_t bid, block b);
 	
-	int GetDepth() const;
-	int GetBlocks() const;
-	int GetBuckets() const;
+	size_t GetDepth();
+
+	size_t GetBlockCount();
+	size_t GetBlockSize();
+
+	size_t GetBucketCount();
+
+	bool WasSerialised();
 };
