@@ -89,6 +89,33 @@ BlockMap Agent::GenerateBlockMap(PositionMap posMap)
 	return blockMap;
 }
 
+ChangedMap Agent::LoadChangedMap()
+{
+	std::fstream file;
+	file.open("changedmap.bin", std::ios::in | std::ios::binary);
+
+	ChangedMap changedMap(count);
+
+	if (!file.good()) {
+		// Initially no blocks have been changed
+		std::fill(changedMap.begin(), changedMap.end(), 0);
+	} else {
+		// Get from file
+		file.read((char *) changedMap.data(), changedMap.size()*sizeof (byte_t));
+	}
+
+	return changedMap;
+}
+
+void Agent::SaveChangedMap(ChangedMap changedMap)
+{
+	std::fstream file;
+	file.open("changedmap.bin", std::ios::out | std::ios::trunc | std::ios::binary);
+
+	file.write((char *) changedMap.data(), changedMap.size()*sizeof (byte_t));
+	file.close();
+}
+
 size_t GetFreePosition(PositionMap &posMap, BlockMap &blockMap)
 {
 	for (;;) {
@@ -134,7 +161,8 @@ block Agent::Access(Op op, int64_t bid, block data)
 	// Load position map
 	PositionMap posMap = LoadPositionMap();
 	BlockMap blockMap = GenerateBlockMap(posMap);
-
+	ChangedMap changedMap = LoadChangedMap();
+	
 	block ciphertext;
 	block plaintext;
 
@@ -160,17 +188,21 @@ block Agent::Access(Op op, int64_t bid, block data)
 
 	store->Write(newPos, ciphertext);
 	
-	// Remove old copies of data if updated
 	if (op == WRITE) {
+		// Remove old copies of data if updated
 		for (auto pos : blockMap[bid]) {
 			posMap[pos] = -1;
 		}
+
+		// Notify that the block has been change
+		changedMap[bid] = 1;
 	}
 
 	posMap[newPos] = bid;
 	
 	// Don't need to save blockmap
 	SavePositionMap(posMap);
+	SaveChangedMap(changedMap);
 
 	return plaintext;
 }

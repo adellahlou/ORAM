@@ -28,7 +28,6 @@ ORAM::ORAM(BlockStore *store, size_t depth, size_t blockSize, bytes<Key> key)
 	// Intialise state of ORAM is new
 	if (!wasSerialised) {
 		for (size_t i = 0; i < GetBucketCount(); i++) {
-			printf("filling bucket %zu\n", i);
 			Bucket bucket;
 
 			for (int z = 0; z < Z; z++) {
