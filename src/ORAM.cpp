@@ -23,13 +23,6 @@ ORAM::ORAM(BlockStore *store, size_t depth, size_t blockSize, bytes<Key> key)
 	
 	bool positionExists = PositionHelper::Load("pos.bin", position, GetBlockCount());
 	
-	if (!positionExists) {
-		// Initialise blocks with random paths
-		for (size_t i = 0; i < GetBlockCount(); i++) {
-			position[i] = RandomPath();
-		}
-	}
-
 	wasSerialised = store->WasSerialised() && positionExists && stashExists;
 
 	// Intialise state of ORAM is new
@@ -45,6 +38,14 @@ ORAM::ORAM(BlockStore *store, size_t depth, size_t blockSize, bytes<Key> key)
 
 			WriteBucket(i, bucket);
 		}
+		
+		// Initialise blocks with random paths
+		for (size_t i = 0; i < GetBlockCount(); i++) {
+			position[i] = RandomPath();
+		}
+
+		// Clear the stash
+		stash.clear();
 	}
 }
 
@@ -74,7 +75,7 @@ int ORAM::GetNodeOnPath(int leaf, int depth)
 	return leaf;
 }
 
-block int32_to_bytes(int32_t n)
+static block int32_to_bytes(int32_t n)
 {
 	block b(sizeof (n));
 	
@@ -83,7 +84,7 @@ block int32_to_bytes(int32_t n)
 	return b;
 }
 
-int32_t block_to_int32(block b)
+static int32_t block_to_int32(block b)
 {
 	int32_t n;
 
@@ -178,6 +179,7 @@ std::vector<int> ORAM::GetIntersectingBlocks(int x, int depth)
 	
 	for (auto b : stash) {
 		int bid = b.first;
+
 		if (GetNodeOnPath(position[bid], depth) == node) {
 			validBlocks.push_back(bid);
 		}

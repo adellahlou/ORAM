@@ -4,6 +4,15 @@
 #include <fstream>
 #include <cstring>
 
+static block int32_to_bytes(int32_t n)
+{
+	block b(sizeof (n));
+	
+	memcpy(b.data(), &n, sizeof (n));
+
+	return b;
+}
+
 bool StashHelper::Load(std::string filename, Stash &stash, size_t blockSize)
 {
 	std::fstream file;
@@ -14,12 +23,6 @@ bool StashHelper::Load(std::string filename, Stash &stash, size_t blockSize)
 	}
 	
 	size_t length = File::GetLength(file);
-	
-	// Does length correctly align?
-	if (length % (sizeof (int) + blockSize)) {
-		file.close();
-		return false;
-	}
 	
 	for (size_t i = 0; i < length; i += sizeof (int32_t) + blockSize) {
 		int32_t id;
@@ -42,10 +45,11 @@ void StashHelper::Save(std::string filename, Stash &stash, size_t blockSize)
 	file.open(filename, std::ios::out | std::ios::binary | std::ios::trunc);
 	
 	for (auto s : stash) {
-		block b(sizeof (int) + blockSize);
+		block b(sizeof (int32_t) + blockSize);
 	
 		// Copy data to slab
-		b.insert(b.end(), &s.first, &s.first + sizeof (int32_t));
+		block idBlock = int32_to_bytes(s.first);
+		b.insert(b.end(), idBlock.begin(), idBlock.end());
 		b.insert(b.end(), s.second.begin(), s.second.end());
 
 		File::Write(file, b.data(), b.size());
