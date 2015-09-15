@@ -207,6 +207,23 @@ block Agent::Access(Op op, int64_t bid, block data)
 	return plaintext;
 }
 
+void Agent::Duplicate(int64_t bid, block plaintext)
+{
+	PositionMap posMap = LoadPositionMap();
+	BlockMap blockMap = GenerateBlockMap(posMap);
+
+	// Find a free position
+	size_t newPos = GetFreePosition(posMap, blockMap);
+	
+	block ciphertext = AES::Encrypt(key, plaintext);
+
+	store->Write(newPos, ciphertext);
+
+	posMap[newPos] = bid;
+
+	SavePositionMap(posMap);
+}
+
 size_t Agent::GetBlockCount()
 {
 	return count;

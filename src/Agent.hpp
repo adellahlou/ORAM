@@ -28,7 +28,6 @@ public:
 		WRITE
 	};
 	
-	block Access(Op op, int64_t bid, block data);
 
 	PositionMap LoadPositionMap();
 
@@ -36,6 +35,10 @@ public:
 	void SaveChangedMap(ChangedMap changedMap);
 
 	static BlockMap GenerateBlockMap(PositionMap posMap);
+
+	block Access(Op op, int64_t bid, block data);
+	
+	void Duplicate(int64_t bid, block plaintext);
 
 	size_t GetBlockCount();
 	size_t GetBlockSize();
