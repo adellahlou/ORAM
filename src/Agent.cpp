@@ -14,8 +14,8 @@ void error(const char *str)
 	exit(1);
 }
 
-Agent::Agent(BlockStore *store, size_t count, size_t size, bytes<Key> key)
-: store(store), count(count), size(size), key(key)
+Agent::Agent(BlockStore *store, size_t blockCount, size_t blockSize, bytes<Key> key)
+: store(store), blockCount(blockCount), blockSize(blockSize), key(key)
 {
 	size_t clen = IV + AES::GetCiphertextLength(GetBlockSize());
 	
@@ -23,15 +23,13 @@ Agent::Agent(BlockStore *store, size_t count, size_t size, bytes<Key> key)
 		error("store block size is too small");
 	}
 
-	if (store->GetBlockCount() < count) {
+	if (store->GetBlockCount() < GetBlockCount()) {
 		error("store has too few blocks");
 	}
 }
 
 Agent::~Agent()
-{
-	delete store;
-}
+{}
 
 PositionMap Agent::LoadPositionMap()
 {
@@ -77,7 +75,7 @@ void SavePositionMap(PositionMap posMap)
 	file.close();
 }
 
-BlockMap Agent::GenerateBlockMap(PositionMap posMap)
+BlockMap Agent::GenerateBlockMap(const PositionMap &posMap)
 {
 	BlockMap blockMap;
 
@@ -94,7 +92,7 @@ ChangedMap Agent::LoadChangedMap()
 	std::fstream file;
 	file.open("changedmap.bin", std::ios::in | std::ios::binary);
 
-	ChangedMap changedMap(count);
+	ChangedMap changedMap(GetBlockCount());
 
 	if (!file.good()) {
 		// Initially no blocks have been changed
@@ -207,6 +205,18 @@ block Agent::Access(Op op, int64_t bid, block data)
 	return plaintext;
 }
 
+block Agent::Read(size_t bid)
+{
+	return Access(READ, bid, {});
+}
+
+void Agent::Write(size_t bid, block b)
+{
+	assert(blockSize == b.size());
+
+	Access(WRITE, bid, b);
+}
+
 void Agent::Duplicate(int64_t bid, block plaintext)
 {
 	PositionMap posMap = LoadPositionMap();
@@ -226,10 +236,15 @@ void Agent::Duplicate(int64_t bid, block plaintext)
 
 size_t Agent::GetBlockCount()
 {
-	return count;
+	return blockCount;
 }
 
 size_t Agent::GetBlockSize()
 {
-	return size;
+	return blockSize;
+}
+
+bool Agent::WasSerialised()
+{
+	return store->WasSerialised();
 }
