@@ -7,24 +7,24 @@
 
 struct FileInfo {
 	size_t length;
-	std::vector<int> blocks;
+	std::vector<size_t> blocks;
 };
 
-class ORAM;
+class BlockStore;
 
-class FileStorage {
-	ORAM &oram;
+class FileSystem {
+	BlockStore *store;
 	
 	std::unordered_map<std::string, FileInfo> files;
 	
-	//std::vector<int> availableIDs;
-
 	int GetAvailableID();
-	void FreeID(int id);
-	
+
+	std::pair<std::string, FileInfo> LoadFileInfo(std::string line);
+	std::string SaveFileInfo(std::string filename, FileInfo info);
+
 public:
-	FileStorage(ORAM &oram);
-	~FileStorage();
+	FileSystem(BlockStore *store);
+	~FileSystem();
 
 	bool Add(std::string filename);
 	bool Remove(std::string filename);
@@ -32,5 +32,7 @@ public:
 	void Load();
 	void Save();
 	
+	BlockStore *GetBlockStore();
+
 	FileInfo GetFileInfo(std::string filename);
 };

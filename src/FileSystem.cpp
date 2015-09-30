@@ -1,77 +1,33 @@
-#include "FileStorage.hpp"
-#include "ORAM.hpp"
+#include "FileSystem.hpp"
+#include "BlockStore.hpp"
 #include "File.hpp"
+#include "Log.hpp"
 
 #include <sstream>
 #include <algorithm>
 
-FileStorage::FileStorage(ORAM &oram)
-: oram(oram), files()//, availableIDs(oram.GetBlocks())
-{
-	for (int i = 0; i < oram.GetBlocks(); i++) {
-		
-		//availableIDs.push_back(i);
-		//availableIDs[i] = i;
-	}
-}
-
-FileStorage::~FileStorage()
+FileSystem::FileSystem(BlockStore *store)
+: store(store), files()
 {}
 
-int FileStorage::GetAvailableID()
-{
-	// Randomise the ID order
-	//std::random_shuffle(availableIDs.begin(), availableIDs.end());
+FileSystem::~FileSystem()
+{}
 
-	/*
-	int index = rand() % availableIDs.size();
-	int id = availableIDs[index];
+int FileSystem::GetAvailableID()
+{
+	static size_t id = 0;
 	
-	availableIDs[index] = availableIDs.back();
-	availableIDs.pop_back();
+	if (id + 1 >= store->GetBlockCount()) {
+		Log::Write(Log::FATAL, "out of space");
+	}
 	
-	return id;
-	*/
-	
-	/*
-	for (;;) {
-		int id = rand() % oram.GetBlocks();
-		
-		bool found = false;
-		
-		// Check if the ID is in use
-		for (auto f : files) {
-			auto &blocks = f.second.blocks;
-			auto iter = std::find(blocks.begin(), blocks.end(), id);
-			
-			if (iter != blocks.end()) {
-				found = true;
-				break;
-			}
-		}
-		
-		if (found) {
-			continue;
-		}
-		
-		// This ID is free
-		return id;
-	}*/
-	
-	// We don't delete files (yet)
-	static int id = 0;
 	return id++;
 }
 
-void FileStorage::FreeID(int id)
-{
-	//availableIDs.push_back(id);
-}
-
-bool FileStorage::Add(std::string filename)
+bool FileSystem::Add(std::string filename)
 {
 	if (files.find(filename) != files.end()) {
-		puts("error: file already exists");
+		Log::Write(Log::WARNING, "file already exists");
 		return false;
 	}
 	
@@ -79,7 +35,7 @@ bool FileStorage::Add(std::string filename)
 	file.open(filename, std::fstream::in | std::fstream::binary);
 	
 	if (!file) {
-		puts("failed to open file");
+		Log::Write(Log::WARNING, "failed to open file");
 		return false;
 	}
 	
@@ -87,17 +43,19 @@ bool FileStorage::Add(std::string filename)
 	FileInfo &info = files[filename];
 	info.length = File::GetLength(file);
 	
-	for (size_t i = 0; i < info.length; i += ChunkSize) {
-		int readLength = std::min(ChunkSize, info.length - i);
+	size_t blockSize = store->GetBlockSize();
 		
-		Chunk chunk = {0};
-		File::Read(file, chunk.data(), readLength);
+	for (size_t i = 0; i < info.length; i += blockSize) {
+		size_t readLength = std::min(blockSize, info.length - i);
+		
+		block b(blockSize, 0);
+		File::Read(file, b.data(), readLength);
 		
 		// Generate random blockID
-		int bid = GetAvailableID();
+		size_t bid = GetAvailableID();
 		info.blocks.push_back(bid);
-		
-		oram.Access(ORAM::WRITE, bid, chunk);
+	
+		store->Write(bid, b);	
 		
 		//printf("\r%zu / %zu", i/CHUNK + 1, info.length/CHUNK);
 		//fflush(stdout);
@@ -109,43 +67,43 @@ bool FileStorage::Add(std::string filename)
 	return true;
 }
 
-bool FileStorage::Remove(std::string filename)
+bool FileSystem::Remove(std::string filename)
 {
 	if (files.find(filename) == files.end()) {
-		puts("error: file not in database");
+		Log::Write(Log::WARNING, "file not in database");
 		return false;
 	}
 	
-	FileInfo &info = files[filename];
-	
-	for (int i : info.blocks) {
-		FreeID(i);
-	}
-	
+	// TODO: This doesn't actually free the IDs
+
 	files.erase(filename);
 	
 	return true;
 }
 
-std::pair<std::string, FileInfo> LoadFile(std::istringstream &sstream)
-{
+std::pair<std::string, FileInfo> FileSystem::LoadFileInfo(std::string line)
+{		
+	std::istringstream sstream(line);
+
 	std::string filename;
 	sstream >> filename;
 	
 	FileInfo info;
 	sstream >> info.length;
 
-	for (size_t i = 0; i < info.length; i += ChunkSize) {
-		int blockID;
-		sstream >> blockID;
+	size_t blockSize = store->GetBlockSize();
+
+	for (size_t i = 0; i < info.length; i += blockSize) {
+		size_t bid;
+		sstream >> bid;
 	
-		info.blocks.push_back(blockID);
+		info.blocks.push_back(bid);
 	}
 	
 	return std::make_pair(filename, info);
 }
 
-void FileStorage::Load()
+void FileSystem::Load()
 {
 	std::ifstream file("filemap.txt");
 	
@@ -154,46 +112,51 @@ void FileStorage::Load()
 	}
 	
 	std::string line;
-	
+
 	while (std::getline(file, line)) {
-		std::istringstream sstream(line);
 	
-		files.insert(LoadFile(sstream));
+		files.insert(LoadFileInfo(line));
 	}
 	
 	file.close();
 }
 
-std::string SaveFile(std::string filename, FileInfo info)
+std::string FileSystem::SaveFileInfo(std::string filename, FileInfo info)
 {
 	std::ostringstream sstream;
 	
 	sstream << filename;
 	sstream << ' ';
 	sstream << info.length;
+
+	size_t blockSize = store->GetBlockSize();
 	
-	for (size_t i = 0; i < info.length; i += ChunkSize) {
+	for (size_t i = 0; i < info.length; i += blockSize) {
 		sstream << ' ';
-		sstream << info.blocks[i/ChunkSize];
+		sstream << info.blocks[i/blockSize];
 	}
 	
 	return sstream.str();
 }
 
-void FileStorage::Save()
+void FileSystem::Save()
 {
 	std::ofstream file("filemap.txt");
 	
 	for (auto f : files) {
-		file << SaveFile(f.first, f.second);
+		file << SaveFileInfo(f.first, f.second);
 		file << '\n';
 	}
 	
 	file.close();
 }
 
+BlockStore *FileSystem::GetBlockStore()
+{
+	return store;
+}
 
-FileInfo FileStorage::GetFileInfo(std::string filename)
+FileInfo FileSystem::GetFileInfo(std::string filename)
 {
 	return files[filename];
 }
