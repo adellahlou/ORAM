@@ -15,7 +15,7 @@ ORAM::ORAM(BlockStore *store, size_t depth, size_t blockSize, bytes<Key> key)
 		Log::Write(Log::WARNING, "TODO(FIX ERROR MSG) Block size doesn't match stores");
 	}
 
-	if (GetBucketCount() < store->GetBlockCount()) {
+	if (GetBucketCount() > store->GetBlockCount()) {
 		Log::Write(Log::FATAL, "Store does not contain enough buckets");
 	}
 
@@ -52,8 +52,6 @@ ORAM::~ORAM()
 {
 	PositionHelper::Save("pos.bin", position, GetBlockCount());
 	StashHelper::Save("stash.bin", stash, blockSize);
-
-	delete store;
 }
 
 // Generate a random path (a leaf node)

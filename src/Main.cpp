@@ -5,193 +5,190 @@
 #include "Agent.hpp"
 #include "RAMStore.hpp"
 #include "FileStore.hpp"
+#include "RandomAgent.hpp"
+#include "Log.hpp"
 
 #include <functional>
 #include <fstream>
-
 #include <cstdio>
+#include <cstring>
 
 int MBtoDepth(size_t mb, size_t blockSize = 4096);
 double Profile(std::function<void()> fun);
-void Write(ORAM &oram, FileInfo info);
-void read(Agent &agent);
-void right(Agent &agent, size_t length);
+
+void WriteFile(FileSystem &files, std::string inputFile, std::string outputFilename);
+
+enum StoreType {
+	FILE_TYPE,
+	MEM_TYPE,
+
+	ORAM_TYPE,
+	RA_TYPE
+};
 
 int main(int argc, char **argv)
-{
+{	
+	if (argc != 4) {
+		printf("%s requires 3 arguments", argv[0]);
+		exit(0);
+	}
+
 	AES::Setup();
 
 	srand(time(NULL));
 	
-//	int blockSize = 1000000;
-
-//	BlockStore *store = new FileStore("moo.bin", 1000*2, IV + AES::GetCiphertextLength(blockSize));
-	
 	bytes<Key> key {0};
-//	Agent agent(store, 1000, blockSize, key);
-
-	//read(agent);
-
-//	right(agent, 1000*1000*1000);
 	
-//	AES::Cleanup();
-
-
-	if (argc != 2) {
-		fputs("requires a depth argument", stderr);
-		return 1;
-	}
-	
-	//size_t mb = 20;
-	//size_t depth = MBtoDepth(mb);
-	//printf("%zuMB = depth %zu\n", mb, depth);
-	
-	size_t depth = strtol(argv[1], nullptr, 10);
+	// Retrive the depth of the tree
+	size_t depth = strtol(argv[3], nullptr, 10);
 	printf("depth = %zu\n", depth);
 
-	size_t blockSize = 4096;
-	size_t storeBlockSize = IV + AES::GetCiphertextLength(Z*(sizeof (int32_t) + blockSize));
+	size_t blockSize = 1024*16; // 16KiB
+	size_t blockCount = Z*(pow(2, depth + 1) - 1);
+	
+	printf("block count = %zu, block size = %zu\n", blockCount, blockSize);
 
-	BlockStore *store = new FileStore("tree.bin", pow(2, depth + 1) - 1, storeBlockSize);
-	ORAM *oram = new ORAM(store, depth, blockSize, key);
-	printf("#blocks = %zu\n", oram->GetBlockCount());
+	size_t storeBlockSize = 0;
+	size_t storeBlockCount = 0;
+
+	// What's backing the secure store
+	StoreType storeType = MEM_TYPE;
+	
+	if (strcmp(argv[1], "memory") == 0) {
+		storeType = MEM_TYPE;
+	} else if (strcmp(argv[1], "file") == 0) {
+		storeType = FILE_TYPE;
+	} else {
+		Log::Write(Log::WARNING, "Using memory as default");
+	}
+	
+	// Parse the secure store type (ORAM or Agent)
+	StoreType secureType = ORAM_TYPE;
+
+	if (strcmp(argv[2], "ORAM") == 0) {
+		secureType = ORAM_TYPE;
+	} else if (strcmp(argv[2], "RA") == 0) {
+		secureType = RA_TYPE;
+	} else {
+		Log::Write(Log::WARNING, "Using ORAM as default");
+	}
+
+	switch (secureType) {
+		case ORAM_TYPE:
+			storeBlockSize = IV + AES::GetCiphertextLength(Z*(sizeof (int32_t) + blockSize));
+			storeBlockCount = blockCount/4;
+			break;
+
+		case RA_TYPE:
+			storeBlockSize = IV + AES::GetCiphertextLength(blockSize);
+			storeBlockCount = 2*blockCount;
+
+			break;
+
+		default:
+			Log::Write(Log::FATAL, "Secure store type missing");
+	}
+
+	// Create the store
+	BlockStore *store = nullptr;
+	
+	switch (storeType) {
+		case FILE_TYPE:
+			store = new FileStore("block.bin", storeBlockCount, storeBlockSize);
+			break;
+
+		case MEM_TYPE:
+			store = new RAMStore(storeBlockCount, storeBlockSize);
+			break;
+
+		default:
+			Log::Write(Log::FATAL, "Store type missing");
+	}
+	
+	// Create the secure store
+	BlockStore *secureStore = nullptr;
+
+	switch (secureType) {
+		case ORAM_TYPE:
+			secureStore = new ORAM(store, depth, blockSize, key);
+			break;
+
+		case RA_TYPE:
+			secureStore = new Agent(store, blockCount, blockSize, key);
+			break;
+
+		default:
+			Log::Write(Log::FATAL, "Secure store type missing");
+	}
+
+	printf("#blocks = %zu\n", secureStore->GetBlockCount());
 
 	/*
-	for (size_t bid = 0; bid < oram->GetBlockCount(); bid++) {
-		block block(blockSize);
+	if (!secureStore->WasSerialised()) {
+		puts("zeroing blocks");
 
-		for (size_t i = 0; i < block.size(); i++) {
-			block[i] = bid % 256;
-		}
+		for (size_t i = 0; i < secureStore->GetBlockCount(); i++) {
+			printf("\rintialising %zu/%zu", i+1, secureStore->GetBlockCount());
+			fflush(stdout);
 
-		oram->Access(ORAM::WRITE, bid, block);
-	}
-	*/
-
-	for (size_t bid = 0; bid < oram->GetBlockCount(); bid++) {
-		block result;
-		
-		oram->Access(ORAM::READ, bid, result);
-
-		printf("\nBlock %zu\n", bid);
-
-		for (auto c : result) {
-			printf("%d ", c);
+			block b(blockSize, i % 256);
+			secureStore->Write(i, b);
 		}
 		puts("");
 	}
-
-	/*
-	FileSystem files(oram);
-	files.Load();
-	
-	std::string filename = "benchmark/Image.ppm";
-	
-	double elapsedTime = 0;
-	
-	for (int i = 1; i <= 10; i++) {
-		double time = Profile([&]() {
-			files.Add("benchmark/tiny/tiny" + std::to_string(i) + ".bin");
-			
-			if (!files.Add(filename)) {
-				// File already exists
-				FileInfo info = files.GetFileInfo(filename);
-			
-				// Retrieve the file
-				Write(*oram, info);
-			}
-		});
-		
-		elapsedTime += time;
-	}
-
-	printf("\nAverage time = %f\n", elapsedTime/10.0);
-	
-	files.Save();
 	*/
 
-	delete oram;
+	FileSystem files(secureStore);
+	files.Load();
+	
+	std::string input = "input.bin";
+	std::string output = "output.bin";
+		
+	Profile([&]() {
+		// Write the file if it already exists
+		if (!files.Add(input)) {
+			WriteFile(files, input, output);
+		}
+	});
+
+	
+	files.Save();
+	
+	delete secureStore;
+	delete store;
 
 	AES::Cleanup();
 }
 
-void read(Agent &agent)
+void WriteFile(FileSystem &files, std::string inputFilename, std::string outputFilename)
 {
-	puts("reading");
-	
+	BlockStore *store = files.GetBlockStore();
+
+	// Retrieve metadata
+	FileInfo info = files.GetFileInfo(inputFilename);
+
+	// Open output file
 	std::fstream file;
-	file.open("input.bin", std::ios::in | std::ios::binary);
+	file.open(outputFilename, std::ios::out | std::ios::binary | std::ios::trunc);
 
-	if (!file.good()) {
-		return;
-	}
+	size_t blockSize = store->GetBlockSize();
 
-	size_t length = File::GetLength(file);
-	size_t blockSize = agent.GetBlockSize();
-	
-	for (size_t i = 0; i < length; i += blockSize) {
-		size_t readLength = std::min(blockSize, length - i);
-		int64_t bid = i/blockSize;
+	for (size_t i = 0; i < info.length; i += blockSize) {
+		size_t writeLength = std::min(blockSize, info.length - i);
+		size_t pos = info.blocks[i/blockSize];
 
-		block b(blockSize);
-		
-		file.read((char *) b.data(), readLength);
-		agent.Access(Agent::WRITE, bid, b);
+		// Read from the store
+		block buffer = store->Read(pos);
 
-		printf("\r%zu/%zu", i/blockSize + 1, length/blockSize);
+		// Write it to file
+		file.write((char *) buffer.data(), writeLength);
+
+		printf("\r%zu / %zu", i/blockSize + 1, info.length/blockSize);
 		fflush(stdout);
 	}
 	puts("\n");
 
 	file.close();
-}
-
-void right(Agent &agent, size_t length)
-{
-	puts("righting");
-
-	std::fstream file;
-	file.open("output.bin", std::ios::out | std::ios::binary | std::ios::trunc);
-
-	size_t blockSize = agent.GetBlockSize();
-
-	for (size_t i = 0; i < length; i += blockSize) {
-		size_t writeLength = std::min(blockSize, length - i);
-		int64_t bid = i/blockSize;
-
-		block b = agent.Access(Agent::READ, bid, {});
-		file.write((char *) b.data(), writeLength);
-
-		printf("\r%zu/%zu", i/blockSize + 1, length/blockSize);
-		fflush(stdout);
-	}
-	puts("\n");
-
-	file.close();
-}
-
-void Write(ORAM &oram, FileInfo info)
-{
-    puts("writing");
-    
-    std::fstream file;
-    file.open("output.bin", std::fstream::out | std::fstream::binary | std::fstream::trunc);
-
-	size_t blockSize = oram.GetBlockSize();
-
-    for (size_t i = 0; i < info.length; i += blockSize) {
-        int writeLength = std::min(blockSize, info.length - i);
-        int bid = info.blocks[i/blockSize];
-        
-        block buffer;
-        oram.Access(ORAM::READ, bid, buffer);
-        file.write((char *) buffer.data(), writeLength);
-        
-        printf("\r%zu / %zu", i/blockSize + 1, info.length/blockSize);
-        fflush(stdout);
-    }
-    file.close();
-    puts("\n");
 }
 
 int MBtoDepth(size_t mb, size_t blockSize /*= 4096*/)
