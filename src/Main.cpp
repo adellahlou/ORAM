@@ -138,6 +138,7 @@ int main(int argc, char **argv)
 	}
 	*/
 
+	/*
 	FileSystem files(secureStore);
 	files.Load();
 	
@@ -150,9 +151,17 @@ int main(int argc, char **argv)
 			WriteFile(files, input, output);
 		}
 	});
-
 	
 	files.Save();
+	*/
+
+	//block b(secureStore->GetBlockSize(), 17);
+	//secureStore->Write(0, b);
+
+	//block b = secureStore->Read(0);
+	//printf("block contains %d\n", (int) b[0]);
+
+	
 	
 	delete secureStore;
 	delete store;
