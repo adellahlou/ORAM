@@ -23,11 +23,12 @@ function setup()
 	server = {}
 end
 
+-- Generate a randomised index of a random array element
 function random(t)
 	return math.random(#t)
 end
 
--- Removes all occurances of x in an array
+-- Removes all occurances of an element in an array
 function remove(t, x)
 	for i = 1, #t do
 		if t[i] == x then
@@ -37,9 +38,12 @@ function remove(t, x)
 	end
 end
 
+-- Make room for a new position
 function takePosition(pos_map, block_map)
 	local rand_pos, rand_block, rand_list
 
+	-- Find a free position, or a position
+	-- which has a block that's duplicated
 	repeat
 		rand_pos = random(pos_map)
 		rand_block = pos_map[rand_pos]
@@ -47,6 +51,7 @@ function takePosition(pos_map, block_map)
 	until rand_block == -1 or #rand_list > 1
 
 	if rand_block ~= -1 then 
+		-- Remove the duplicated entry
 		remove(rand_list, rand_pos)
 		pos_map[rand_pos] = -1
 	end
@@ -70,23 +75,24 @@ function build_posmap(blockmap)
 	return posmap
 end
 
+-- Simulates an access
 function access(op, bid, blockmap, data)
 	-- Build the position map
 	local posmap = build_posmap(blockmap)
-
 	local plaintext
+
 	if op == "READ" then
-	-- Find the blocks position
-	local positions = blockmap[bid]
-	local pos = positions[random(positions)]
+		-- Find the blocks position
+		local positions = blockmap[bid]
+		local pos = positions[random(positions)]
 
 		-- Retrive the block
-	local ciphertext = server_read(pos)
-	plaintext = decrypt(ciphertext)
+		local ciphertext = server_read(pos)
+		plaintext = decrypt(ciphertext)
 	end
 
 	-- Re-encrypt the block
-	data = data or plaintext or "moo"
+	data = data or plaintext
 	ciphertext = encrypt(data)
 
 	-- Write it back

@@ -33,15 +33,14 @@ function love.load(args)
 	love.graphics.setNewFont(28)
 	
 	setup()
-	ctr = 1
-	active = 10
 
-	timestep = 0.1
+	ctr = 1 -- Used to generate the initial blocks
+	active = 10 -- Number of unique blocks
+
+	timestep = 0.1 -- Update at 10hz
 	time = timestep
 
 	paused = false
-
-	--love.math.setRandomSeed(7)
 end
 
 function love.update(dt)
@@ -51,10 +50,12 @@ function love.update(dt)
 
 	if time > timestep then
 		if ctr <= active then
-			w(ctr)
+			-- Initally generate one of every block
+			write(ctr)
 			ctr = ctr + 1
 		else
-			--random_agent(block_map)
+			-- Uncomment next line to simulate the randomisation agent
+			-- random_agent(block_map)
 		end
 		
 		time = time - timestep
@@ -62,27 +63,27 @@ function love.update(dt)
 
 end
 
-function r(n)
-	if not n then
-		n = love.math.random(active)
+function read(bid)
+	if not bid then
+		bid = love.math.random(active)
 	end
 
-	access("READ", n, block_map)
+	access("READ", bid, block_map)
 end
 
-function w(n)
-	if not n then
-		n = love.math.random(active)
+function write(bid)
+	if not bid then
+		bid = love.math.random(active)
 	end
 
-   	access("WRITE", n, block_map, "eleven")
+   	access("WRITE", bid, block_map, "eleven")
 end
 
 function love.mousepressed(x, y, button)
 	if button == 'l' then
-		r()
+		read()
 	elseif button == 'r' then
-   		w()
+   		write()
    	end
 end
 
@@ -92,7 +93,7 @@ function love.keypressed(key)
 	end
 end
 
-function colour(bid)
+function block_colour(bid)
 	local hue = bid * 1.6180339887498
 	hue = hue - math.floor(hue)
 	
@@ -100,12 +101,14 @@ function colour(bid)
 end
 
 function love.draw(dt)
-	love.graphics.setColor(0, 0, 0)
-	love.graphics.printf("buffer size = " .. #buffer, 10, 10, 400)
+	if #buffer > 0 then
+		love.graphics.setColor(0, 0, 0)
+		love.graphics.printf("buffer size = " .. #buffer, 10, 10, 400)
+	end
 
+	-- Draw the randomisation agents buffer
 	for x,elem in pairs(buffer) do
-		love.graphics.setColor(colour(elem.bid));
-
+		love.graphics.setColor(block_colour(elem.bid));
 		love.graphics.rectangle("fill", 200 + 64*x, 0, 60, 60)
 
 		love.graphics.setColor(0, 0, 0)
@@ -124,13 +127,15 @@ function love.draw(dt)
 		for x = 1, 10 do
 			c = c + 1
 			if pos_map[c] ~= -1 then
-				love.graphics.setColor(colour(pos_map[c]))
-
+				-- Draw each square
+				love.graphics.setColor(block_colour(pos_map[c]))
 				love.graphics.rectangle("fill", 64*x, 64*y, 60, 60)
 			
+				-- Fill in the square
 				love.graphics.setColor(0, 0, 0)
 				love.graphics.rectangle("line", 64*x, 64*y, 60, 60)
-			
+				
+				-- Draw the block ID
 				love.graphics.setColor(255, 255, 255)
 				love.graphics.printf(pos_map[c], 64*x, 64*y +28/2, 60, "center")
 			end

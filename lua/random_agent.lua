@@ -34,7 +34,6 @@ function random_agent(blockmap)
 
 	if changed[elem.bid] then
 		-- Remove element from buffer
-		
 		buffer[index] = buffer[#buffer]
 		buffer[#buffer] = nil
 		
