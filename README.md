@@ -1,3 +1,4 @@
+# Hiding Access Patterns
 The working code for the Oblivious RAM project I worked on over the Summer.
 
 ## Path ORAM
